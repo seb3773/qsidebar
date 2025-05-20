@@ -30,9 +30,9 @@
   
 *It's worth noting that there's also a GTK2 version of qsidebar (file: qsidebar_gtk2.c). It maintains the same visual appearance as the GTK3 version and offers the same core functionality, albeit with slightly fewer configuration options. This GTK2 version served both as a "style exercise" (the code was initially written in GTK3 to avoid visual limitations, and then adapted for GTK2) and as a response to the need for lower resource consumption on certain systems, such as the Raspberry Pi. The GTK2 version uses somewhat less RAM and potentially slightly fewer CPU resources. However, the difference is often minimal and imperceptible on most systems, so you're encouraged to choose the version that best suits your specific system requirements.
   
-*No wayland support for now (and probably never, I'm not interested at all by wayland)
-
-
+* Only X11 : no wayland support for now (and probably never, I'm not interested at all by wayland).
+  
+  -----------------------------------------------------------
 * **Building:**  
 1) First you need to build the DCOP qsidebar lib (this is mandatory if you plan to use the trinity applet, can be omitted if you don't):
 
@@ -41,10 +41,11 @@ g++ -shared -fPIC -O2 -fstrict-aliasing -flto -fno-fat-lto-objects -ffunction-se
 Then Move this lib to /opt/trinity/lib/  
   
 2) Build qsidebar binary:  
-
+  
 gcc -g0 -O2 -DNDEBUG -Wl,-z,norelro -fstrict-aliasing -flto -ffunction-sections -fdata-sections -fno-asynchronous-unwind-tables -fno-unwind-tables -fomit-frame-pointer -ffast-math -fno-math-errno -fvisibility=hidden -fmerge-all-constants -fuse-ld=gold -Wl,--gc-sections,--build-id=none,--as-needed,--strip-all,-O1,--icf=all,--compress-debug-sections=zlib -s -o qsidebar qsidebar.c `pkg-config --cflags --libs gtk+-3.0 libcanberra-gtk3 libnm gio-2.0 glib-2.0 x11 xrandr` -pthread -L. -lqsidebar_dcop -L/opt/trinity/lib -ltqt-mt -lstdc++ -ldbus-1 -Wl,-rpath=.:/opt/trinity/lib && strip --strip-all ./qsidebar
   
 Then Move the binary "qsidebar" to /usr/share/local/bin/  
   
+3) Build qsidebar trinity kicker applet :  
 
 
