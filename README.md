@@ -108,5 +108,62 @@ The recommended compilation process uses `gcc` with the following notable flags:
 ----------------------------------------------------------- 
 **Packages:**
 
-Debian packages are coming soon for a simplified installation.
+Debian packages are coming soon for a simplified installation.  
+
+-----------------------------------------------------------
+## Configuring qsidebar
+
+The `qsidebar` application is configured through a text file.  
+To apply changes, you usually need to restart `qsidebar` or send it a `SIGHUP` signal.  
+
+- Here's a breakdown of the main sections and options:
+
+**[General settings]**
+
+This section controls the overall behavior and appearance of `qsidebar`.
+
+* **`option_trinity_kicker_applet`**: Set to `1` to integrate `qsidebar` as a Trinity Desktop Kicker applet instead of using the system tray.
+* **`option_use_systray`**: Set to `1` to enable the system tray icon (ignored if the Trinity Kicker applet is enabled).
+* **`option_tray_icon`**: Choose the system tray icon style: `default`, `bell`, or `color`.
+* **`option_tint`**: Set the panel's background color. Use `default`, `dark`, `tde` (for Trinity integration), or specify RGB values (e.g., `255,100,0`).
+* **`option_opacity`**: Adjust the panel's transparency (value between `0.1` and `1`) (GTK3 only).
+* **`option_panel_image`**: Set the full path to a `.png` image to use as the panel background, or `none` for a solid color.
+* **`option_panel_image_solidbackground`**: If using a background image, set to `0` for a fully transparent background behind the image (GTK3 only).
+* **`option_panel_anim_type`**: Choose the panel opening/closing animation: `slide`, `fade`, `slide+fade`, or `none` (fade and slide+fade are GTK3 only).
+* **`option_panel_anim_ease_effect`**: Set to `1` for smoother animations.
+* **`option_panel_title`**: Customize the panel's title text, or use `default` ("Actions center").
+* **`option_dark_mode`**: Set to `1` to enable dark mode with inverted colors and icons.
+* **`option_nightlight_intensity`**: Adjust the intensity of the night light mode (if enabled).
+* **`option_backlight_control`**: Set to `1` to enable a backlight control slider (for laptops).
+* **`option_rounded_buttons`**: Set to `1` for rounded quick action buttons (GTK3 only).
+* **`option_use_transparent_click`**: Set to `1` to make the panel close when clicking outside it.
+* **`option_transparent_click_mode`**: If transparent click is enabled, set to `ALL` to close on any click outside (except taskbar), or `DESKTOP` to close only on desktop clicks.
+* **`option_transparent_type`**: Set the type of transparent window to avoid visual glitches (e.g., `COMBO`, `DOCK`).
+* **`option_bottom_margin`**: Adjust the panel's bottom margin.
+* **`option_notif_sound`**: Choose the notification sound: `win10`, `win11`, `system`, `silent`, or the full path to a custom sound file.
+* **`option_notif_number_indicator`**: Set to `1` to show the number of notifications in the tray icon.
+* **`option_notif_hide_icon`**: Set to `1` to hide icons in notification popups.
+* **`option_notifs_popup_position`**: Set the position of notification popups: `default`, `topright`, `topleft`, `bottomleft`.
+* **`option_notifs_popup_color`**: Set the background color of notification popups (RGB or `default`).
+* **`option_notif_popup_opacity`**: Adjust the transparency of notification popups.
+* **`option_notif_low_timeout`**: Set the display time (in seconds) for low urgency notifications.
+* **`option_notif_normal_timeout`**: Set the display time for normal urgency notifications.
+* **`option_paneltitle_font`, `option_panel_text_font`, `option_quick_actions_font`, `option_project_font`, `option_notif_font`**: Specify fonts to use, either `system` or a font name with an optional size (e.g., `SegoeUI 12`).
+
+**[Quick action buttons]**
+
+Configure up to 16 customizable buttons. Each button has options like `button_x_name`, `button_x_icon`, `button_x_type` (`oneshot` or `toggle`), `button_x_cmd` (command to execute), `button_x_initstate_cmd` (for toggle buttons), `button_x_icon_only`, `button_x_confirm_cmd`, and `button_x_confirm_text`. You can also use predefined buttons like `{wifi}`, `{bluetooth}`, `{airplane}`, `{nightlight}`, `{project}`, and `{focus}` by specifying their icon.
+
+**[Project settings]**
+
+Configure settings for the display management ("Project") panel.
+
+* **`project_extend_full_panel_height`**: Set to `1` to use the full screen height for the panel in extended display mode.
+* **`action_pc_screen_only`, `action_duplicate`, `action_extend`, `action_second_screen_only`**: Optionally specify external scripts or programs to handle display configuration for each mode. Leave empty to use the internal functions.
+
+**[Notifications filters]**
+
+Define up to 20 filters for incoming notifications. Each filter requires a `notif_filter_x_type` (`title`, `body`, `title+body`, or `app_name`), a `notif_filter_x_string` to search for, and at least a `notif_filter_x_action` (`ignore`, `accept_but_silent`, `set_urgent`) or a `notif_filter_x_exec` (command to execute).
+
+------------------------------------------------------------------------------
 
