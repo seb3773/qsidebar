@@ -179,6 +179,8 @@ Each filter requires a `notif_filter_x_type` (`title`, `body`, `title+body`, or 
 * "Raw" icon data (as sent by `notify-send -i data,...`).
 * See [Configuration Details](configuration_details.md) for more complete explanations of configuration options.
 
+*If you're a developper, maybe you can be interested by the [qsidebar technical overview document](technical_overview.md)
+
 ------------------------------------------------------------------------------
 ## Screenshots
 
