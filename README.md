@@ -74,7 +74,7 @@ gcc -g0 -O2 -DNDEBUG -Wl,-z,norelro -fstrict-aliasing -flto -ffunction-sections 
     
 Then Move the binary "qsidebar" to /usr/share/local/bin/  
   
-3) Build qsidebar trinity kicker applet :  
+3) Build qsidebar trinity kicker applet (once again, only needed if you plan to use qsidebar with his trinity kicker applet, else it's not necessary):  
   
 cd kickapplet  
 ./autogen.sh
