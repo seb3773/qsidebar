@@ -21,3 +21,6 @@
     * Customizable fonts for various elements (panel title, text, quick actions, project, notifications).
 
 
+
+
+*Originally, it was designed exclusively for the Trinity Desktop environment, and the initial development used TQt3. However, my limited experience with Qt development :p and the broader compatibility of GTK3 (allowing it to run on other desktop environments) led to the decision to rewrite the code with GTK3, utilizing a dedicated Kicker applet for improved Trinity integration. The outcome is, in my opinion, a successful compromise, providing seamless Trinity integration while also supporting standalone usage.*
