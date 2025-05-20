@@ -1,4 +1,4 @@
-## Technical Overview
+## qsidebar technical overview
 
 This section provides a technical overview of key aspects of the qsidebar codebase.
 
