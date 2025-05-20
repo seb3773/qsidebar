@@ -30,8 +30,8 @@
   
 *It's worth noting that there's also a GTK2 version of qsidebar (file: qsidebar_gtk2.c). It maintains the same visual appearance as the GTK3 version and offers the same core functionality, albeit with slightly fewer configuration options. This GTK2 version served both as a "style exercise" (the code was initially written in GTK3 to avoid visual limitations, and then adapted for GTK2) and as a response to the need for lower resource consumption on certain systems, such as the Raspberry Pi. The GTK2 version uses somewhat less RAM and potentially slightly fewer CPU resources. However, the difference is often minimal and imperceptible on most systems, so you're encouraged to choose the version that best suits your specific system requirements.
   
-* Only X11 : no wayland support for now (and probably never, I'm not interested at all by wayland).  
-* Not gtk4 version, as I don't really see the reason to do that, gtk4 is f***** bloated and I profondly dislike desktop apps made in gtk4. So nothing like that planned for now.
+* Only X11 : no wayland support for now (and probably never, I'm not interested at all by wayland).  But you're welcome to adapt the code for wayland (the 'project' part seems to be the most difficult part to adapt among other things) if you want ;-)
+* Not gtk4 version, as I don't really see the reason to do that, gtk4 is f***** bloated and I profondly dislike desktop apps made in gtk4. So nothing like that planned for now. (But once again, if you want a gtk4 version, let's do it yourself, I think the changes are not so much for this to be gtk4 compatible).
   
   -----------------------------------------------------------
 
@@ -113,7 +113,7 @@ Debian packages are coming soon for a simplified installation.
 -----------------------------------------------------------
 ## Configuring qsidebar
 
-The `qsidebar` application is configured through a text file.  
+The `qsidebar` application is configured through a text file located at `/home/<user>/.qsidebar/qsidebar.conf`. A minimal configuration file is automatically created in this location if it doesn't already exist.  
 To apply changes, you usually need to restart `qsidebar` or send it a `SIGHUP` signal.  
 
 - Here's a breakdown of the main sections and options:
