@@ -8,6 +8,7 @@
 *The application implements robust logic to accurately detect the primary display in multi-monitor setups. It iterates through display outputs and CRTCs using the Xrandr library to reliably identify the correct primary monitor, addressing a common challenge in multi-display environments. (Note: While qsidebar uses the Xrandr library, it implements its own display management logic rather than directly relying on the `xrandr` command-line tool.)*
 * **Integrated Night Light:** qsidebar includes a built-in night light feature, similar to the one found in Windows. This feature adjusts the color temperature of the display, reducing blue light emission to minimize eye strain during evening or nighttime use. The intensity of the effect is customizable, allowing users to fine-tune the warmth of the screen to their preference.
 * **Notification Management:** Full notify-daemon with the ability to filter notifications based on title, body, title+body, or application name. Filters can be configured to ignore notifications, accept them silently, or set their urgency. You can also execute custom commands upon matching a filter. Options for notification popup position, colors, opacity, and timeouts are available. You can also hide notification icons and control the tray icon's notification number indicator.
+* **Backlight Control:** `qsidebar`  includes functionality to control the screen backlight, which is relevant for laptops. It interacts with the system to get and set the brightness level.
 * **Flexible Integration:** `qsidebar` can be used as a standalone application with its own system tray icon.  Alternatively, it offers full integration with **Trinity Desktop environment** through a dedicated Kicker applet, providing seamless control of the sidebar.
 * **Optimized Performance:** The program is designed for efficiency, featuring optimized code that results in a small binary size ( < 100KB ) and minimal memory footprint, allowing it to run smoothly even on low-end systems.
 * **Extensive Customization:** Highly customizable appearance with options for:
@@ -164,6 +165,21 @@ Configure settings for the display management ("Project") panel.
 **[Notifications filters]**
 
 Define up to 20 filters for incoming notifications. Each filter requires a `notif_filter_x_type` (`title`, `body`, `title+body`, or `app_name`), a `notif_filter_x_string` to search for, and at least a `notif_filter_x_action` (`ignore`, `accept_but_silent`, `set_urgent`) or a `notif_filter_x_exec` (command to execute).
+  
+  
+**[Notifications filters]**
+
+Define up to 20 filters for incoming notifications. qsidebar relies on the "notify-daemon" (specifically, the libnotify implementation) for handling notifications. This means that qsidebar may conflict with other notification daemons like Dunst, Mako, or Xfce4-notifyd. If another daemon is already running and has claimed ownership of the notification bus, qsidebar will display the error message "Not primary owner of org.freedesktop.Notifications or already running" and exit.
+
+Each filter requires a `notif_filter_x_type` (`title`, `body`, `title+body`, or `app_name`), a `notif_filter_x_string` to search for, and at least a `notif_filter_x_action` (`ignore`, `accept_but_silent`, `set_urgent`) or a `notif_filter_x_exec` (command to execute).
+
+**About the notifications feature; qsidebar supports the essential features of the libnotify specification, including:*
+
+* **Notification urgency levels.*
+* **Application icons (or custom icons).*
+* **"Raw" icon data (as sent by `notify-send -i data,...`).*  
+
+**See configuration_details.md for more complete explanations of configuration options*
 
 ------------------------------------------------------------------------------
 
