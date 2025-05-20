@@ -94,7 +94,8 @@ then do
 sudo udevadm control --reload-rules && sudo udevadm trigger  
 -----------------------------------------------------------  
 **Build technical details:**
-
+  
+The application is linked against the libraries listed above using `pkg-config` to obtain the correct compiler and linker flags. It also uses `-pthread` for POSIX thread support.
 The recommended compilation process uses `gcc` with the following notable flags:
 
 * `-O2`: Optimization level 2, for improved performance (for the 'normal' use case, it's far better from -O3 which increase the final binary too much for no real performance improvements.)
@@ -104,7 +105,6 @@ The recommended compilation process uses `gcc` with the following notable flags:
 * `-Wl,...`: Linker flags for garbage collection of unused sections, disabling build IDs, stripping all symbols, interprocedural code optimization, and compressing debug sections.
 * `-s`: Strip all symbols from the final executable :-)
 
-The application is linked against the libraries listed above using `pkg-config` to obtain the correct compiler and linker flags. It also uses `-pthread` for POSIX thread support.
 ----------------------------------------------------------- 
 **Packages:**
 
