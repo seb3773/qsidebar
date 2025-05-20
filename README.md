@@ -9,7 +9,7 @@
 * **Integrated Night Light:** qsidebar includes a built-in night light feature, similar to the one found in Windows. This feature adjusts the color temperature of the display, reducing blue light emission to minimize eye strain during evening or nighttime use. The intensity of the effect is customizable, allowing users to fine-tune the warmth of the screen to their preference.
 * **Notification Management:** Full notify-daemon with the ability to filter notifications based on title, body, title+body, or application name. Filters can be configured to ignore notifications, accept them silently, or set their urgency. You can also execute custom commands upon matching a filter. Options for notification popup position, colors, opacity, and timeouts are available. You can also hide notification icons and control the tray icon's notification number indicator.
 * **Flexible Integration:** `qsidebar` can be used as a standalone application with its own system tray icon.  Alternatively, it offers full integration with **Trinity Desktop environment** through a dedicated Kicker applet, providing seamless control of the sidebar.
-* **Optimized Performance:** The program is designed for efficiency, featuring optimized code that results in a small binary size (approximately 100KB) and minimal memory footprint, allowing it to run smoothly even on low-end systems.
+* **Optimized Performance:** The program is designed for efficiency, featuring optimized code that results in a small binary size ( < 100KB ) and minimal memory footprint, allowing it to run smoothly even on low-end systems.
 * **Extensive Customization:** Highly customizable appearance with options for:
     * Panel tint (default, dark, TDE, or custom RGB).
     * Panel opacity.
