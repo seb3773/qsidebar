@@ -47,5 +47,18 @@ gcc -g0 -O2 -DNDEBUG -Wl,-z,norelro -fstrict-aliasing -flto -ffunction-sections 
 Then Move the binary "qsidebar" to /usr/share/local/bin/  
   
 3) Build qsidebar trinity kicker applet :  
+  
+cd kickapplet  
+./autogen.sh
+./configure
+
+cd src
+./compile_and_install.sh
+(this will build the kicker applet library files (qsidebar_applet_panelapplet.so and qsidebar_applet_panelapplet.la) to  /opt/trinity/lib/trinity/ and the qsidebar_applet.desktop file to /opt/trinity/share/apps/kicker/applets/
+  
+4) Create the ressources folder: 
+mkdir -p /usr/share/qsidebar  
+Then copy necessary files (icons, sounds) located in "assets" in /usr/share/qsidebar/ (the content of assets folder, not the assets folder itself).  
+
 
 
