@@ -56,9 +56,14 @@ cd src
 ./compile_and_install.sh
 (this will build the kicker applet library files (qsidebar_applet_panelapplet.so and qsidebar_applet_panelapplet.la) to  /opt/trinity/lib/trinity/ and the qsidebar_applet.desktop file to /opt/trinity/share/apps/kicker/applets/
   
-4) Create the ressources folder: 
+4) Create the ressources folder and copy ressources: 
 mkdir -p /usr/share/qsidebar  
 Then copy necessary files (icons, sounds) located in "assets" in /usr/share/qsidebar/ (the content of assets folder, not the assets folder itself).  
-
+  
+5) Allow qsidebar to control backlight if present:  
+ Create file /etc/udev/rules.d/99-backlight.rules with this content:  
+SUBSYSTEM=="backlight", ACTION=="add", RUN+="/bin/sh -c 'chmod 666 /sys/class/backlight/*/brightness'"  
+then do  
+sudo udevadm control --reload-rules && sudo udevadm trigger
 
 
