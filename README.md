@@ -2,9 +2,22 @@
 
 `qsidebar` is a lightweight and efficient utility for Linux, written in pure C using the GTK3 toolkit.  It provides a feature-rich sidebar that emulates the functionality of the Windows 10 notification center.  Key features include:
 
-* **Customizable Quick Action Buttons:** The sidebar offers a set of user-customizable buttons for frequently used actions.  It includes pre-programmed support for common actions, streamlining tasks.
-* **Enhanced Display Management ("Project" Panel):** `qsidebar` incorporates a robust "Project" panel designed for managing multiple display configurations.  Unlike traditional tools like `xrandr`, it employs a complete rewrite of the display configuration mechanism, prioritizing reliability and preventing potential display issues.  This aims to provide a safer and more stable multi-monitor experience.
-* **Notification Management:** The application seamlessly integrates with the notify-daemon to handle desktop notifications.  It offers advanced filtering capabilities, enabling users to define actions or modify display behavior based on received notifications.
-* **Extensive Customization:** `qsidebar` is highly customizable, allowing users to personalize the panel's appearance.  This includes options to change icons, panel colors, background images, and notification colors, providing a tailored user experience.
+* **Customizable Quick Action Buttons:** Define up to 16 custom buttons with names, icons, types (oneshot/toggle), and associated commands. Supports predefined buttons for common actions like Wi-Fi, Bluetooth, Airplane mode, Night Light, Project (display management), and Focus Assist. Buttons can also have confirmation dialogs.
+* **Enhanced Display Management ("Project" Panel):** A dedicated panel for managing dual displays with a custom implementation that aims to be more reliable than `xrandr`. Unlike traditional tools like `xrandr`, it employs a complete rewrite of the display configuration mechanism, prioritizing reliability and preventing potential display issues. Offers options for PC screen only, duplicate, extend, and second screen only modes. Users can also define custom scripts to handle display configurations.
+* **Notification Management:** Full notify-daemon with the ability to filter notifications based on title, body, title+body, or application name. Filters can be configured to ignore notifications, accept them silently, or set their urgency. You can also execute custom commands upon matching a filter. Options for notification popup position, colors, opacity, and timeouts are available. You can also hide notification icons and control the tray icon's notification number indicator.
 * **Flexible Integration:** `qsidebar` can be used as a standalone application with its own system tray icon.  Alternatively, it offers integration with **Trinity Desktop environment** through a dedicated Kicker applet, providing seamless control of the sidebar.
-* **Optimized Performance:** The program is designed for efficiency, featuring optimized code that results in a small binary size (approximately 100KB) and minimal memory footprint.
+* **Optimized Performance:** The program is designed for efficiency, featuring optimized code that results in a small binary size (approximately 100KB) and minimal memory footprint, allowing it to run smoothly even on low-end systems.
+* **Extensive Customization:** Highly customizable appearance with options for:
+    * Panel tint (default, dark, TDE, or custom RGB).
+    * Panel opacity.
+    * Background image (with an option for a solid background behind the image).
+    * Panel opening/closing animations (slide, fade, slide+fade, none) with optional easing.
+    * Custom panel title.
+    * Dark mode with night light intensity adjustment.
+    * Rounded quick action buttons.
+    * Transparent click-through behavior with configurable modes (ALL, DESKTOP) and window types.
+    * Bottom margin for the panel.
+    * Notification sound (predefined or custom).
+    * Customizable fonts for various elements (panel title, text, quick actions, project, notifications).
+
+
