@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Qsidebar
+Comment=A panel applet to control qsidebar
+Icon=/usr/share/qsidebar/icons/qsidebartray_main.png
+X-TDE-Library=qsidebar_applet_panelapplet
+X-TDE-UniqueApplet = false

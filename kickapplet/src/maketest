@@ -1,0 +1,3 @@
+/opt/trinity/bin/dcopidl qsidebar_applet_dcop.h > qsidebar_applet_dcop.kidl && 
+/opt/trinity/bin/dcopidl2cpp --c++-suffix cpp --no-stub qsidebar_applet_dcop.kidl && make                                                           
+

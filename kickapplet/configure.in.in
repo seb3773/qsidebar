@@ -1,0 +1,14 @@
+#MIN_CONFIG(3.2.0)
+
+AM_INIT_AUTOMAKE(qsidebar_applet, 0.1)
+AC_C_BIGENDIAN
+AC_CHECK_KDEMAXPATHLEN
+
+dnl Optimisations additionnelles pour réduire la taille et améliorer les performances
+dnl Optimisation pour la performance et réduction de la taille du binaire
+CFLAGS="$CFLAGS -O2 -flto -ffunction-sections -fdata-sections -fomit-frame-pointer -ffast-math -fmerge-all-constants"
+CXXFLAGS="$CXXFLAGS -O2 -flto -ffunction-sections -fdata-sections -fomit-frame-pointer -ffast-math -fmerge-all-constants -fno-rtti"
+LDFLAGS="$LDFLAGS -Wl,--gc-sections,--as-needed,--strip-all,-O1"
+AC_SUBST(CFLAGS)
+AC_SUBST(CXXFLAGS)
+AC_SUBST(LDFLAGS)
