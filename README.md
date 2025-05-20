@@ -180,4 +180,24 @@ Each filter requires a `notif_filter_x_type` (`title`, `body`, `title+body`, or 
 * See [Configuration Details](configuration_details.md) for more complete explanations of configuration options.
 
 ------------------------------------------------------------------------------
+## Screenshots
 
+### Main Panel
+
+![GTK3 Main Panel](screenshots/gtk3_main_panel.jpg)
+
+### Notification Popup
+
+![GTK3 Notification Popup](screenshots/gtk3_notif_popup.jpg)
+
+### Notifications
+
+![GTK3 Notifications](screenshots/gtk3_notifications.jpg)
+
+### Project Panel
+
+![GTK3 Project Panel](screenshots/gtk3_project_panel.jpg)
+
+### Tray Icon
+
+![GTK3 Tray Icon](screenshots/gtk3_tray.jpg)
