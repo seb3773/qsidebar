@@ -173,13 +173,11 @@ Define up to 20 filters for incoming notifications. qsidebar relies on the "noti
 
 Each filter requires a `notif_filter_x_type` (`title`, `body`, `title+body`, or `app_name`), a `notif_filter_x_string` to search for, and at least a `notif_filter_x_action` (`ignore`, `accept_but_silent`, `set_urgent`) or a `notif_filter_x_exec` (command to execute).
 
-**About the notifications feature; qsidebar supports the essential features of the libnotify specification, including:*
-
-* **Notification urgency levels.*
-* **Application icons (or custom icons).*
-* **"Raw" icon data (as sent by `notify-send -i data,...`).*  
-
-**See configuration_details.md for more complete explanations of configuration options*
+*About the notifications feature; qsidebar supports the essential features of the libnotify specification, including:
+* Notification urgency levels.
+* Application icons (or custom icons).
+* "Raw" icon data (as sent by `notify-send -i data,...`).
+* See [Configuration Details](configuration_details.md) for more complete explanations of configuration options.
 
 ------------------------------------------------------------------------------
 
