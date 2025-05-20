@@ -34,7 +34,28 @@
 * Not gtk4 version, as I don't really see the reason to do that, gtk4 is f***** bloated and I profondly dislike desktop apps made in gtk4. So nothing like that planned for now.
   
   -----------------------------------------------------------
-* **Building:**  
+
+**Dependencies:**
+
+qsidebar relies on the following key libraries:
+
+* GTK+ 3.x (`gtk+-3.0`) ( gtk2 version: GTK+ 2.x (`gtk+-2.0`) )
+* GLib (`glib-2.0`) and GIO (`gio-2.0`)
+* X11 (`x11`, `xrandr`)
+* D-Bus (`dbus-1`)
+* libcanberra-gtk3 (`libcanberra-gtk3`)
+* NetworkManager (`libnm`)
+* Qt (`tqt-mt`)
+* C++ Standard Library (`stdc++`)
+* ( gtk2 version: Xinerama )  
+
+Standard C libraries are also required.
+
+ -----------------------------------------------------------
+* **Building from sources:**  
+  
+
+
 1) First you need to build the DCOP qsidebar lib if you plan to use the trinity applet, (can be skipped if you don't):
 
 g++ -shared -fPIC -O2 -fstrict-aliasing -flto -fno-fat-lto-objects -ffunction-sections -fdata-sections -fomit-frame-pointer -ffast-math -fno-math-errno -fno-rtti -fno-exceptions -fmerge-all-constants -fuse-ld=gold -o libqsidebar_dcop.so qsidebar_dcop.cpp -I/opt/trinity/include -I/usr/include/tqt/ -I/usr/include/tqt3/ -L/opt/trinity/lib /opt/trinity/lib/libDCOP.so -ltqt-mt -Wl,--gc-sections,--as-needed,--strip-all,-z,norelro,--icf=all,-O1 && strip --strip-all ./libqsidebar_dcop.so  
@@ -72,6 +93,20 @@ SUBSYSTEM=="backlight", ACTION=="add", RUN+="/bin/sh -c 'chmod 666 /sys/class/ba
 then do  
 sudo udevadm control --reload-rules && sudo udevadm trigger  
 -----------------------------------------------------------  
-  
+**Build technical details:**
+
+The recommended compilation process uses `gcc` with the following notable flags:
+
+* `-O2`: Optimization level 2, for improved performance (for the 'normal' use case, it's far better from -O3 which increase the final binary too much for no real performance improvements.)
+* `-DNDEBUG`: Disables debug assertions.
+* `-fstrict-aliasing`, `-flto`, `-ffunction-sections`, `-fdata-sections`, `-fno-asynchronous-unwind-tables`, `-fno-unwind-tables`, `-fomit-frame-pointer`, `-ffast-math`, `-fno-math-errno`, `-fvisibility=hidden`, `-fmerge-all-constants`: A set of advanced optimization flags to reduce binary size and improve execution speed.
+* `-fuse-ld=gold`:  Use the Gold linker.
+* `-Wl,...`: Linker flags for garbage collection of unused sections, disabling build IDs, stripping all symbols, interprocedural code optimization, and compressing debug sections.
+* `-s`: Strip all symbols from the final executable :-)
+
+The application is linked against the libraries listed above using `pkg-config` to obtain the correct compiler and linker flags. It also uses `-pthread` for POSIX thread support.
+----------------------------------------------------------- 
+**Packages:**
+
 Debian packages are coming soon for a simplified installation.
 
