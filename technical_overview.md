@@ -151,3 +151,14 @@ This section details specific optimization techniques employed within the qsideb
     * **Benefit:** Bitwise operations are faster than evaluating multiple boolean variables.
     * **Optimization Goal:** Reduce the overhead of conditional checks.
 
+**7. Image Optimization and Color Inversion**
+
+* **Optimized PNGs:** The application employs highly optimized PNG images, often in a monochrome (black and white) format, for icons and other UI elements.
+    * **Benefits:**
+        * **Reduced File Size:** Monochrome PNGs with indexed color palettes can be significantly smaller than full-color images, saving disk space and memory.
+        * **Faster Loading:** Smaller images load more quickly, improving application startup time and UI responsiveness.
+        * **Efficient Color Inversion:** Inverting the colors of a black and white image is a very fast operation (e.g., flipping the bit values of the color palette). This is particularly advantageous for implementing dark mode, where icons need to be displayed in inverted colors.
+    * **Dark Mode Efficiency:** The design choice of using mostly monochrome icons simplifies and speeds up the color inversion process when switching to dark mode. Instead of having to recolor complex, full-color images, the application can perform a simple and efficient inversion.
+    * **Example:** Let's take the black Wi-Fi icon on a transparent background. To invert it, you simply swap black for white :-)  This is much faster than analyzing each pixel of a multi-colored icon and trying to determine appropriate inverted colors...
+  
+
