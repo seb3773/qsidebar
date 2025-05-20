@@ -1,6 +1,6 @@
 # qsidebar: A Customizable Notification and Quick Action Center for Linux
 
-`qsidebar` is a lightweight and efficient utility for Linux, written in pure C using the GTK3 toolkit.  It provides a feature-rich sidebar that emulates the functionality of the Windows 10 notification center.  
+**qsidebar** is a lightweight and efficient utility for Linux, written in pure C using the GTK3 toolkit.  It provides a feature-rich sidebar that emulates the functionality of the Windows 10 notification center.  
 Key features include:
 
 * **Customizable Quick Action Buttons:** Define up to 16 custom buttons with names, icons, types (oneshot/toggle), and associated commands. Supports predefined buttons for common actions like Wi-Fi, Bluetooth, Airplane mode, Night Light, Project (display management), and Focus Assist. Buttons can also have confirmation dialogs.
