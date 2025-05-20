@@ -39,7 +39,7 @@
 
 qsidebar relies on the following key libraries:
 
-* GTK+ 3.x (`gtk+-3.0`) ( gtk2 version: GTK+ 2.x (`gtk+-2.0`) )
+* GTK+ 3.x (`gtk+-3.0`) / ( gtk2 version: GTK+ 2.x (`gtk+-2.0`) )
 * GLib (`glib-2.0`) and GIO (`gio-2.0`)
 * X11 (`x11`, `xrandr`)
 * D-Bus (`dbus-1`)
@@ -47,7 +47,7 @@ qsidebar relies on the following key libraries:
 * NetworkManager (`libnm`)
 * Qt (`tqt-mt`)
 * C++ Standard Library (`stdc++`)
-* ( gtk2 version: Xinerama )  
+* / ( gtk2 version: Xinerama )  
 
 Standard C libraries are also required.
 
