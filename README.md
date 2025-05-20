@@ -64,6 +64,8 @@ Then copy necessary files (icons, sounds) located in "assets" in /usr/share/qsid
  Create file /etc/udev/rules.d/99-backlight.rules with this content:  
 SUBSYSTEM=="backlight", ACTION=="add", RUN+="/bin/sh -c 'chmod 666 /sys/class/backlight/*/brightness'"  
 then do  
-sudo udevadm control --reload-rules && sudo udevadm trigger
-
+sudo udevadm control --reload-rules && sudo udevadm trigger  
+-----------------------------------------------------------  
+  
+Debian packages are coming soon for a simplified installation.
 
