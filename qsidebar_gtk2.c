@@ -118,6 +118,7 @@ typedef struct _CustomSliderClass CustomSliderClass;
 #define CUSTOM_SLIDER(obj)           (G_TYPE_CHECK_INSTANCE_CAST ((obj), CUSTOM_TYPE_SLIDER, CustomSlider))
 #define CUSTOM_SLIDER_CLASS(cls)     (G_TYPE_CHECK_CLASS_CAST ((cls), CUSTOM_TYPE_SLIDER, CustomSliderClass))
 #define CUSTOM_IS_SLIDER(obj)        (G_TYPE_CHECK_INSTANCE_TYPE ((obj), CUSTOM_TYPE_SLIDER))
+#define ALIGN_LEFT(widget) gtk_misc_set_alignment(GTK_MISC(widget), 0.0, 0.5)
 
 static void update_systray_icon(void);
 static void on_button_clicked(GtkWidget *widget, gpointer user_data);
@@ -725,14 +726,10 @@ static void calculate_max_notification_buttons_once(int panel_height, int num_bu
     max_notification_buttons = available_height / (notif_button_height + spacing);
 }
 
-
 static gboolean notification_button_enter_cb(GtkWidget *widget, GdkEventCrossing *event, gpointer user_data) {
-    gboolean is_critical = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(widget), "notif_is_critical"));
     gboolean is_dark = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(widget), "notif_is_dark"));
     GdkColor hover_color;
-    if (is_critical) {
-        gdk_color_parse("#ff7777", &hover_color);
-    } else if (is_dark) {
+    if (is_dark) {
         gdk_color_parse("#2E2E2E", &hover_color);
     } else {
         gdk_color_parse("#F6F6F6", &hover_color);
@@ -741,14 +738,10 @@ static gboolean notification_button_enter_cb(GtkWidget *widget, GdkEventCrossing
     return FALSE;
 }
 
-
 static gboolean notification_button_leave_cb(GtkWidget *widget, GdkEventCrossing *event, gpointer user_data) {
-    gboolean is_critical = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(widget), "notif_is_critical"));
     gboolean is_dark = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(widget), "notif_is_dark"));
     GdkColor bg_color;
-    if (is_critical) {
-        gdk_color_parse("#fc5151", &bg_color);
-    } else if (is_dark) {
+    if (is_dark) {
         gdk_color_parse(GLOBAL_BG_COLOR_DARK, &bg_color);
     } else {
         gdk_color_parse(GLOBAL_BG_COLOR, &bg_color);
@@ -756,6 +749,7 @@ static gboolean notification_button_leave_cb(GtkWidget *widget, GdkEventCrossing
     gtk_widget_modify_bg(widget, GTK_STATE_NORMAL, &bg_color);
     return FALSE;
 }
+
 
 
 typedef struct {
@@ -1892,6 +1886,15 @@ static gboolean animate_notification_close(gpointer user_data) {
         anim->current_width = anim->initial_width * current_scale_i / 1000;
         anim->current_height = anim->initial_height * current_scale_i / 1000;
         gtk_widget_set_size_request(anim->button, anim->current_width, anim->current_height);
+GtkWidget *background_box = g_object_get_data(G_OBJECT(anim->button), "notif_background_box");
+if (GTK_IS_WIDGET(background_box)) {
+    int border_px = 3;
+    gtk_widget_set_size_request(
+        background_box,
+        anim->current_width + 2 * border_px,
+        anim->current_height + 2 * border_px
+    );
+}
     }
     int opacity_i = (int)(opacity * 1000);
     if (opacity_i > 300) {
@@ -3131,6 +3134,7 @@ static gboolean on_notification_button_press(GtkWidget *widget, GdkEventButton *
 
 
 
+
 static GtkWidget* create_notification_button(const Notification *notif, int panel_width, int panel_height, gboolean show_date) {
     const int margin_lr = 15;
     const int margin_tb = 0;
@@ -3138,55 +3142,65 @@ static GtkWidget* create_notification_button(const Notification *notif, int pane
     int button_height = panel_height / 10;
     gboolean is_dark = (sidebar_flags & FLAG_DARKMODE) != 0;
     gboolean is_critical = (notif->urgency == 2);
-    GtkWidget *event_box = gtk_event_box_new();
-    gtk_widget_set_size_request(event_box, button_width, button_height);
-    g_object_set_data(G_OBJECT(event_box), "timestamp", GINT_TO_POINTER(notif->timestamp));
     GdkColor bg_color, fg_color;
-    if (is_critical) {
-        gdk_color_parse("#fc5151", &bg_color);
-        gdk_color_parse(is_dark ? "#FFFFFF" : "#000000", &fg_color);
-    } else if (is_dark) {
+    if (is_dark) {
         gdk_color_parse(GLOBAL_BG_COLOR_DARK, &bg_color);
         gdk_color_parse(LABELS_FG_COLOR_DARK, &fg_color);
     } else {
         gdk_color_parse(GLOBAL_BG_COLOR, &bg_color);
         gdk_color_parse(LABELS_FG_COLOR, &fg_color);
     }
+    GtkWidget *event_box = gtk_event_box_new();
+    gtk_widget_set_size_request(event_box, button_width, button_height);
+    g_object_set_data(G_OBJECT(event_box), "timestamp", GINT_TO_POINTER(notif->timestamp));
     gtk_widget_modify_bg(event_box, GTK_STATE_NORMAL, &bg_color);
-    GtkWidget *hbox = gtk_hbox_new(FALSE, 5);
+    GtkWidget *hbox = gtk_hbox_new(FALSE, 0);
     gtk_container_add(GTK_CONTAINER(event_box), hbox);
-    int icon_width = 0;
     if (!(sidebar_flags & FLAG_NOTIF_HIDE_ICON) && strlen(notif->icon) > 0) {
         GdkPixbuf *pixbuf = NULL;
-        if (strncmp(notif->icon, "data:image/", 11) == 0) {
+                if (strncmp(notif->icon, "data:image/", 11) == 0) {
+            const char *base64_prefix = "base64,";
+            char *base64_data = strstr(notif->icon, base64_prefix);
+            if (base64_data) {
+                base64_data += strlen(base64_prefix);
+                gsize decoded_len = 0;
+                guchar *decoded_data = g_base64_decode(base64_data, &decoded_len);
+                if (decoded_data && decoded_len > 0) {
+                    GInputStream *stream = g_memory_input_stream_new_from_data(decoded_data, decoded_len, g_free);
+                    pixbuf = gdk_pixbuf_new_from_stream(stream, NULL, NULL);
+                    g_object_unref(stream);
+                }
+            }
         } else {
             pixbuf = gdk_pixbuf_new_from_file(notif->icon, NULL);
         }
         if (pixbuf) {
             int icon_height = button_height / 2;
-            icon_width = gdk_pixbuf_get_width(pixbuf) * icon_height / gdk_pixbuf_get_height(pixbuf);
+            int icon_width = gdk_pixbuf_get_width(pixbuf) * icon_height / gdk_pixbuf_get_height(pixbuf);
             GdkPixbuf *scaled_pixbuf = gdk_pixbuf_scale_simple(pixbuf, icon_width, icon_height, GDK_INTERP_BILINEAR);
             GtkWidget *image = gtk_image_new_from_pixbuf(scaled_pixbuf);
-            GtkWidget *align = gtk_alignment_new(0.0, 0.5, 0.0, 0.0);
-            gtk_container_add(GTK_CONTAINER(align), image);
-            gtk_box_pack_start(GTK_BOX(hbox), align, FALSE, FALSE, 5);
+            gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
             g_object_unref(pixbuf);
             g_object_unref(scaled_pixbuf);
         }
     }
+    const int LABELS_START_OFFSET = 16;
+    GtkWidget *spacer = gtk_label_new(NULL);
+    gtk_widget_set_size_request(spacer, LABELS_START_OFFSET, -1);
+    gtk_box_pack_start(GTK_BOX(hbox), spacer, FALSE, FALSE, 0);
     GtkWidget *vbox = gtk_vbox_new(FALSE, 2);
     GtkWidget *vbox_align = gtk_alignment_new(0.0, 0.5, 0.0, 0.0);
     gtk_container_add(GTK_CONTAINER(vbox_align), vbox);
     gtk_box_pack_start(GTK_BOX(hbox), vbox_align, TRUE, TRUE, 0);
     int margin_start = 10;
     int margin_end = 10;
-    int hbox_spacing = 10;
-    int text_width = button_width - margin_start - margin_end - icon_width - (icon_width > 0 ? hbox_spacing : 0);
+    int text_width = button_width - margin_start - margin_end - LABELS_START_OFFSET;
     PangoLayout *layout = gtk_widget_create_pango_layout(event_box, NULL);
     pango_layout_set_font_description(layout, font_desc);
     char title_markup[MAX_LINE_LENGTH + 20];
     snprintf(title_markup, sizeof(title_markup), "%s", notif->title);
     GtkWidget *title = gtk_label_new(NULL);
+    ALIGN_LEFT(title);
     gtk_widget_modify_font(title, font_desc);
     gtk_label_set_markup(GTK_LABEL(title), title_markup);
     gtk_widget_modify_fg(title, GTK_STATE_NORMAL, &fg_color);
@@ -3232,6 +3246,7 @@ static GtkWidget* create_notification_button(const Notification *notif, int pane
     pango_layout_get_pixel_size(layout, &layout_width, &layout_height);
     if (layout_width <= text_width || has_newline) {
         GtkWidget *first_label = gtk_label_new(first_line);
+        ALIGN_LEFT(first_label);
         gtk_widget_modify_font(first_label, font_desc);
         gtk_widget_modify_fg(first_label, GTK_STATE_NORMAL, &fg_color);
         gtk_box_pack_start(GTK_BOX(vbox), first_label, FALSE, FALSE, 0);
@@ -3255,6 +3270,7 @@ static GtkWidget* create_notification_button(const Notification *notif, int pane
         strncpy(temp, first_line, cut_pos);
         temp[cut_pos] = '\0';
         GtkWidget *first_label = gtk_label_new(temp);
+        ALIGN_LEFT(first_label);
         gtk_widget_modify_font(first_label, font_desc);
         gtk_box_pack_start(GTK_BOX(vbox), first_label, FALSE, FALSE, 0);
         const char *remaining = first_line + cut_pos + (first_line[cut_pos] == ' ' ? 1 : 0);
@@ -3268,6 +3284,7 @@ static GtkWidget* create_notification_button(const Notification *notif, int pane
         pango_layout_get_pixel_size(layout, &layout_width, &layout_height);
         if (layout_width <= text_width) {
             GtkWidget *second_label = gtk_label_new(second_line);
+            ALIGN_LEFT(second_label);
             gtk_widget_modify_font(second_label, font_desc);
             gtk_widget_modify_fg(second_label, GTK_STATE_NORMAL, &fg_color);
             gtk_box_pack_start(GTK_BOX(vbox), second_label, FALSE, FALSE, 0);
@@ -3295,6 +3312,7 @@ static GtkWidget* create_notification_button(const Notification *notif, int pane
                 char marked_up_text[MAX_LINE_LENGTH + 50];
                 snprintf(marked_up_text, sizeof(marked_up_text), "%s [...]", temp);
                 GtkWidget *second_label = gtk_label_new(NULL);
+                ALIGN_LEFT(second_label);
                 gtk_widget_modify_font(second_label, font_desc);
                 gtk_label_set_markup(GTK_LABEL(second_label), marked_up_text);
                 gtk_box_pack_start(GTK_BOX(vbox), second_label, FALSE, FALSE, 0);
@@ -3304,6 +3322,7 @@ static GtkWidget* create_notification_button(const Notification *notif, int pane
                 strncpy(temp, second_line, cut_pos);
                 temp[cut_pos] = '\0';
                 GtkWidget *second_label = gtk_label_new(temp);
+                ALIGN_LEFT(second_label);
                 gtk_widget_modify_font(second_label, font_desc);
                 gtk_box_pack_start(GTK_BOX(vbox), second_label, FALSE, FALSE, 0);
             }
@@ -3317,9 +3336,11 @@ static GtkWidget* create_notification_button(const Notification *notif, int pane
         strftime(time_str, sizeof(time_str), "%H:%M", tm_info);
     }
     GtkWidget *time = gtk_label_new(time_str);
+    ALIGN_LEFT(time);
     gtk_widget_modify_font(time, font_desc);
     gtk_widget_modify_fg(time, GTK_STATE_NORMAL, &fg_color);
     gtk_box_pack_start(GTK_BOX(vbox), time, FALSE, FALSE, 0);
+
     if (is_truncated) {
         char tooltip_text[2 * MAX_LINE_LENGTH + 50];
         strncpy(tooltip_text, full_text, sizeof(tooltip_text) - 1);
@@ -3345,14 +3366,34 @@ static GtkWidget* create_notification_button(const Notification *notif, int pane
     g_signal_connect(event_box, "leave-notify-event", G_CALLBACK(notification_button_leave_cb), NULL);
     g_signal_connect(event_box, "button-press-event", G_CALLBACK(on_notification_button_press), GINT_TO_POINTER(panel_width));
     gtk_widget_show_all(event_box);
+    int border_px = 3;
+    GtkWidget *background_box = gtk_event_box_new();
+    GdkColor border_color;
+    if (is_critical) {
+        gdk_color_parse("#fc5151", &border_color);
+    } else {
+        border_color = bg_color;
+    }
+    gtk_widget_modify_bg(background_box, GTK_STATE_NORMAL, &border_color);
+    gtk_widget_set_size_request(background_box, button_width + 2 * border_px, button_height + 2 * border_px);
+    GtkWidget *center_align = gtk_alignment_new(0.5, 0.5, 0, 0);
+    gtk_alignment_set_padding(GTK_ALIGNMENT(center_align),
+                             border_px, border_px,
+                             border_px, border_px);
+    gtk_container_add(GTK_CONTAINER(background_box), center_align);
+    gtk_container_add(GTK_CONTAINER(center_align), event_box);
+    g_object_set_data(G_OBJECT(event_box), "notif_background_box", background_box);
     GtkWidget *outer_align = gtk_alignment_new(0.5, 0.5, 0, 0);
     gtk_alignment_set_padding(GTK_ALIGNMENT(outer_align),
                              margin_tb, margin_tb,
-                             margin_lr, margin_lr
-    );
-    gtk_container_add(GTK_CONTAINER(outer_align), event_box);
+                             margin_lr, margin_lr);
+    gtk_container_add(GTK_CONTAINER(outer_align), background_box);
+
     return outer_align;
 }
+
+
+
 
 
 
@@ -3960,7 +4001,6 @@ static gboolean on_notification_popup_timeout(gpointer user_data) {
 
 
 
-
 static void show_notification_popup(const Notification *notif) {
     if (((sidebar_flags & FLAG_FOCUS_ASSIST) && notif->urgency != 2) ||
         (notification_popup && notif->urgency < current_popup_urgency)) return;
@@ -3970,6 +4010,11 @@ static void show_notification_popup(const Notification *notif) {
         if (timeout_id) { g_source_remove(timeout_id); timeout_id = 0; }
     }
     notification_popup = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    GdkScreen *screen = gtk_widget_get_screen(notification_popup);
+    GdkColormap *colormap = gdk_screen_get_rgba_colormap(screen);
+    if (colormap && gdk_screen_is_composited(screen)) {
+        gtk_widget_set_colormap(notification_popup, colormap);
+    }
     gtk_window_set_keep_above(GTK_WINDOW(notification_popup), TRUE);
     gtk_window_set_decorated(GTK_WINDOW(notification_popup), FALSE);
     gtk_window_set_type_hint(GTK_WINDOW(notification_popup), notif_type_hint);
@@ -3983,7 +4028,7 @@ static void show_notification_popup(const Notification *notif) {
     GtkWidget *notif_btn = create_notification_button(notif, w, h, FALSE);
     gtk_container_add(GTK_CONTAINER(notification_popup), notif_btn);
     GdkRectangle workarea = {0};
-    GdkScreen *screen = gdk_screen_get_default();
+    screen = gdk_screen_get_default();
     gint monitor_num = 0;
     gdk_screen_get_monitor_geometry(screen, monitor_num, &workarea);
     int bw = w, bh = h / 8;
@@ -5347,10 +5392,11 @@ gboolean on_draw(GtkWidget *widget, GdkEventExpose *event, gpointer user_data) {
     a = widget->allocation;
 #endif
     cairo_t *cr = gdk_cairo_create(widget->window);
+
     if (widget == window) {
-            cairo_set_source_rgba(cr, render_options.tint_r, render_options.tint_g, render_options.tint_b, render_options.opacity);
-            cairo_rectangle(cr, 0, 0, a.width, a.height);
-            cairo_fill(cr);
+        cairo_set_source_rgba(cr, render_options.tint_r, render_options.tint_g, render_options.tint_b, render_options.opacity);
+        cairo_rectangle(cr, 0, 0, a.width, a.height);
+        cairo_fill(cr);
         if (sidebar_flags & FLAG_IS_BACKGROUND) {
             int win_width = a.width;
             int win_height = a.height;
@@ -5364,6 +5410,7 @@ gboolean on_draw(GtkWidget *widget, GdkEventExpose *event, gpointer user_data) {
         }
     }
     else if (widget == notification_popup) {
+        cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
         cairo_set_source_rgba(cr, 0, 0, 0, 0);
         cairo_rectangle(cr, 0, 0, a.width, a.height);
         cairo_fill(cr);
@@ -5375,5 +5422,6 @@ gboolean on_draw(GtkWidget *widget, GdkEventExpose *event, gpointer user_data) {
     cairo_destroy(cr);
     return FALSE;
 }
+
 
 
