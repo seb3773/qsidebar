@@ -137,32 +137,36 @@ const gchar *css_data_dark =
 static void regenerate_notifications(GtkWidget *window);
 static void slider_changed(GtkRange *range, gpointer user_data);
 static void update_current_brightness(void);
+static gboolean check_wifi_available(void);
+static gboolean check_bluetooth_available(void);
 
 static uint32_t sidebar_flags = 0;
-#define FLAG_IS_BACKGROUND         (1 << 0)
-#define FLAG_DARKMODE              (1 << 1)
-#define FLAG_ROUNDEDBUTTONS        (1 << 2)
-#define FLAG_USE_SYSTRAY           (1 << 3)
-#define FLAG_TRAYCOLORMODE         (1 << 4)
-#define FLAG_TRINITY_APPLET        (1 << 5)
-#define FLAG_PANEL_SOLIDBACKGROUND (1 << 6)
-#define FLAG_JUST_CHANGED_CONFIG   (1 << 7)
-#define FLAG_HAS_WIFI              (1 << 8)
-#define FLAG_HAS_BLUETOOTH         (1 << 9)
-#define FLAG_FOCUS_ASSIST          (1 << 10)
-#define FLAG_BACKLIGHT_CONTROL     (1 << 11)
-#define FLAG_EASE_EFFECT                (1 << 12)
-#define FLAG_SILENT_THIS                (1 << 13)
-#define FLAG_NOTIF_NUMBER_INDICATOR     (1 << 14)
-#define FLAG_NOTIF_HIDE_ICON            (1 << 15)
-#define FLAG_TRANSPARENT_CLICK_MODE     (1 << 16)
-#define FLAG_EXTEND_MODE (1 << 17)
-#define FLAG_PROJECT_EXTEND_FULL_HEIGHT (1 << 18)
+enum SidebarFlags {
+    FLAG_IS_BACKGROUND           = 1 << 0,
+    FLAG_DARKMODE                = 1 << 1,
+    FLAG_ROUNDEDBUTTONS       = 1 << 2,
+    FLAG_USE_SYSTRAY             = 1 << 3,
+    FLAG_TRAYCOLORMODE           = 1 << 4,
+    FLAG_TRINITY_APPLET          = 1 << 5,
+    FLAG_PANEL_SOLIDBACKGROUND = 1 << 6,
+    FLAG_JUST_CHANGED_CONFIG     = 1 << 7,
+    FLAG_HAS_WIFI                = 1 << 8,
+    FLAG_HAS_BLUETOOTH           = 1 << 9,
+    FLAG_FOCUS_ASSIST            = 1 << 10,
+    FLAG_BACKLIGHT_CONTROL       = 1 << 11,
+    FLAG_EASE_EFFECT             = 1 << 12,
+    FLAG_SILENT_THIS             = 1 << 13,
+    FLAG_NOTIF_NUMBER_INDICATOR  = 1 << 14,
+    FLAG_NOTIF_HIDE_ICON         = 1 << 15,
+    FLAG_TRANSPARENT_CLICK_MODE  = 1 << 16,
+    FLAG_EXTEND_MODE             = 1 << 17,
+    FLAG_PROJECT_EXTEND_FULL_HEIGHT = 1 << 18,
+    FLAG_TINT_IS_DEFAULT = 1 << 19
+};
 
 static int bottom_margin;
 float intensity = 0.8;
 static cairo_surface_t *background_source = NULL;
-static gboolean notif_tint_is_default=TRUE;
 static int background_width = 0;
 static int background_height = 0;
 static GtkWidget *window = NULL;
@@ -427,7 +431,7 @@ AnimationData *anim_data = NULL;
 
 gchar* build_css(const gchar *base_css) {
     extern int tint_popup_r, tint_popup_g, tint_popup_b;
-    if (notif_tint_is_default && (sidebar_flags & FLAG_DARKMODE)) {
+    if ((sidebar_flags & FLAG_TINT_IS_DEFAULT) && (sidebar_flags & FLAG_DARKMODE)) {
         tint_popup_r = 0;
         tint_popup_g = 0;
         tint_popup_b = 0;
@@ -1497,9 +1501,12 @@ void load_config() {
     char line[MAX_LINE_LENGTH];
     int max_button_idx = -1;
     sidebar_flags &= ~FLAG_BACKLIGHT_CONTROL;
+    sidebar_flags &= ~FLAG_HAS_BLUETOOTH;
+    sidebar_flags &= ~FLAG_HAS_WIFI;
     sidebar_flags &= ~FLAG_PROJECT_EXTEND_FULL_HEIGHT;
     sidebar_flags &= ~FLAG_ROUNDEDBUTTONS;
     sidebar_flags &= ~FLAG_TRINITY_APPLET;
+    sidebar_flags |= FLAG_TINT_IS_DEFAULT;
     for (int i = 0; i < MAX_BUTTONS; i++) {
         button_configs[i].name[0] = '\0';
         button_configs[i].type[0] = '\0';
@@ -1518,7 +1525,7 @@ void load_config() {
         notif_filters[i].action[0] = '\0';
         notif_filters[i].exec[0] = '\0';
     }
-    notif_tint_is_default=TRUE;
+    sidebar_flags |= FLAG_TINT_IS_DEFAULT;
     while (fgets(line, MAX_LINE_LENGTH, config_file) != NULL) {
         if (line[0] == '\n' || line[0] == '#')
             continue;
@@ -1687,7 +1694,7 @@ else if (strcmp(key, "option_tint") == 0) {
                 tint_popup_r = r;
                 tint_popup_g = g;
                 tint_popup_b = b;
-                notif_tint_is_default=FALSE;
+                sidebar_flags &= ~FLAG_TINT_IS_DEFAULT;
             } else {
                 g_print("Invalid color value: %s, using default (255, 255, 255)\n", value);
                 tint_popup_r = 255;
@@ -1784,7 +1791,6 @@ if (sscanf(value, "%d", &solidbackground_value) == 1 && (solidbackground_value =
     g_print("Invalid option_panel_image_solidbackground value: %s, using default (1)\n", value);
     sidebar_flags |= FLAG_PANEL_SOLIDBACKGROUND;
 }
-
 } else if (strcmp(key, "option_rounded_buttons") == 0) {
     int rounded_buttons_value;
     if (sscanf(value, "%d", &rounded_buttons_value) == 1 && (rounded_buttons_value == 0 || rounded_buttons_value == 1)) {
@@ -1974,12 +1980,24 @@ else
         max_button_idx = button_idx;
          button_configs[button_idx].icon_only = FALSE;
     if (strcmp(property, "name") == 0) {
-       if (strcmp(value, "{wifi}") == 0 && !(sidebar_flags & FLAG_HAS_WIFI)) {
-            continue;
-        }
-       if (strcmp(value, "{bluetooth}") == 0 && !(sidebar_flags & FLAG_HAS_BLUETOOTH)) {
-            continue;
-       }
+     if (strcmp(value, "{wifi}") == 0) {
+         if (!(sidebar_flags & FLAG_HAS_WIFI)) {
+             if (check_wifi_available()) {
+                 sidebar_flags |= FLAG_HAS_WIFI;
+             } else {
+                 continue;
+             }
+         }
+     }
+     if (strcmp(value, "{bluetooth}") == 0) {
+         if (!(sidebar_flags & FLAG_HAS_BLUETOOTH)) {
+             if (check_bluetooth_available()) {
+                 sidebar_flags |= FLAG_HAS_BLUETOOTH;
+             } else {
+                 continue;
+             }
+         }
+     }
         if (strcmp(value, "{wifi}") == 0) {
             button_configs[button_idx].is_preprogrammed = TRUE;
             strncpy(button_configs[button_idx].name, "Wifi", MAX_LINE_LENGTH - 1);
@@ -4259,21 +4277,36 @@ static gboolean check_wifi_available(void) {
 
 
 
-
 static gboolean check_bluetooth_available(void) {
-    GError *e = NULL;
-    GDBusConnection *c = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &e);
-    if (!c) return FALSE;
-    GVariant *r = g_dbus_connection_call_sync(
-        c, BT_DBUS_SERVICE, "/org/bluez/hci0", "org.freedesktop.DBus.Properties", "Get",
-        g_variant_new("(ss)", "org.bluez.Adapter1", "Address"),
-        NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &e
+    GError *error = NULL;
+    GDBusConnection *conn = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
+    if (!conn) {
+        g_clear_error(&error);
+        return FALSE;
+    }
+    GVariant *iface = g_variant_new_string("org.bluez.Adapter1");
+    GVariant *prop = g_variant_new_string("Address");
+    GVariant *params = g_variant_new_tuple((GVariant *[]){ iface, prop }, 2);
+    GVariant *result = g_dbus_connection_call_sync(
+        conn,
+        "org.bluez",
+        "/org/bluez/hci0",
+        "org.freedesktop.DBus.Properties",
+        "Get",
+        params,
+        NULL,
+        G_DBUS_CALL_FLAGS_NONE,
+        2000,
+        NULL,
+        &error
     );
-    gboolean ok = (r != NULL);
-    if (r) g_variant_unref(r);
-    g_object_unref(c);
+    gboolean ok = (result != NULL);
+    if (result) g_variant_unref(result);
+    g_clear_error(&error);
+    g_object_unref(conn);
     return ok;
 }
+
 
 
 
@@ -4738,16 +4771,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     setlocale(LC_NUMERIC, "C");
-if (check_wifi_available()) {
-    sidebar_flags |= FLAG_HAS_WIFI;
-} else {
-    sidebar_flags &= ~FLAG_HAS_WIFI;
-}
-if (check_bluetooth_available()) {
-    sidebar_flags |= FLAG_HAS_BLUETOOTH;
-} else {
-    sidebar_flags &= ~FLAG_HAS_BLUETOOTH;
-}
     GdkScreen *screen = gdk_screen_get_default();
     g_signal_connect(screen, "size-changed", G_CALLBACK(on_screen_size_changed), NULL);
     signal(SIGUSR1, handle_signal); //toggle panel visibility

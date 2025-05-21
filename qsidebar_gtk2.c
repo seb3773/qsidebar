@@ -127,6 +127,8 @@ static void handle_project_action(const char *action) ;
 static void regenerate_notifications(GtkWidget *window);
 static void slider_changed(CustomSlider *slider, gpointer user_data);
 static void update_current_brightness(void);
+static gboolean check_wifi_available(void);
+static gboolean check_bluetooth_available(void);
 
 static uint32_t sidebar_flags = 0;
 enum SidebarFlags {
@@ -146,8 +148,10 @@ enum SidebarFlags {
     FLAG_NOTIF_HIDE_ICON         = 1 << 13,
     FLAG_TRANSPARENT_CLICK_MODE  = 1 << 14,
     FLAG_EXTEND_MODE             = 1 << 15,
-    FLAG_PROJECT_EXTEND_FULL_HEIGHT = 1 << 16
+    FLAG_PROJECT_EXTEND_FULL_HEIGHT = 1 << 16,
+    FLAG_IS_BACKGROUND_IMAGE = 1 << 17
 };
+
 
 static int bottom_margin;
 float intensity = 0.8f;
@@ -169,7 +173,6 @@ static int total_display_width = 0;
 static char *username = NULL;
 static GdkFilterReturn xrandr_event_filter(GdkXEvent *xevent, GdkEvent *event, gpointer data);
 static gboolean show_project_buttons_with_animation(gpointer user_data);
-static gboolean is_background_image = FALSE;
 static cairo_surface_t *slider_background = NULL;
 static int g_crop_x = 0;
 static int g_crop_y = 0;
@@ -557,7 +560,7 @@ static gboolean custom_slider_expose(GtkWidget *widget, GdkEventExpose *event) {
     int track_y = (height - slider->track_height) / 2;
     cairo_set_source_rgba(cr, render_options.tint_r, render_options.tint_g, render_options.tint_b, render_options.opacity);
     cairo_paint(cr);
-    if (is_background_image && background_source != NULL) {
+    if ((sidebar_flags & FLAG_IS_BACKGROUND_IMAGE) && background_source != NULL) {
         if (slider_background == NULL) {
             int slider_x, slider_y;
             gtk_widget_translate_coordinates(widget, window, 0, 0, &slider_x, &slider_y);
@@ -1957,8 +1960,11 @@ void load_config() {
     char line[MAX_LINE_LENGTH];
     int max_button_idx = -1;
     sidebar_flags &= ~FLAG_BACKLIGHT_CONTROL;
+    sidebar_flags &= ~FLAG_HAS_BLUETOOTH;
+    sidebar_flags &= ~FLAG_HAS_WIFI;
     sidebar_flags &= ~FLAG_PROJECT_EXTEND_FULL_HEIGHT;
     sidebar_flags &= ~FLAG_TRINITY_APPLET;
+    sidebar_flags &= ~FLAG_IS_BACKGROUND_IMAGE;
     for (int i = 0; i < MAX_BUTTONS; i++) {
         button_configs[i].name[0] = '\0';
         button_configs[i].type[0] = '\0';
@@ -2404,12 +2410,24 @@ else if (strcmp(key, "option_tint") == 0) {
         max_button_idx = button_idx;
          button_configs[button_idx].icon_only = FALSE;
     if (strcmp(property, "name") == 0) {
-       if (strcmp(value, "{wifi}") == 0 && !(sidebar_flags & FLAG_HAS_WIFI)) {
-            continue;
+       if (strcmp(value, "{wifi}") == 0) {
+        if (!(sidebar_flags & FLAG_HAS_WIFI)) {
+            if (check_wifi_available()) {
+                sidebar_flags |= FLAG_HAS_WIFI;
+            } else {
+                continue;
+            }
         }
-       if (strcmp(value, "{bluetooth}") == 0 && !(sidebar_flags & FLAG_HAS_BLUETOOTH)) {
-            continue;
-       }
+    }
+    if (strcmp(value, "{bluetooth}") == 0) {
+        if (!(sidebar_flags & FLAG_HAS_BLUETOOTH)) {
+            if (check_bluetooth_available()) {
+                sidebar_flags |= FLAG_HAS_BLUETOOTH;
+            } else {
+                continue;
+            }
+        }
+    }
         if (strcmp(value, "{wifi}") == 0) {
             button_configs[button_idx].is_preprogrammed = TRUE;
             strncpy(button_configs[button_idx].name, "Wifi", MAX_LINE_LENGTH - 1);
@@ -4060,7 +4078,7 @@ static void cleanup_sidebar(void) {
         cairo_surface_destroy(slider_background);
         slider_background = NULL;
     }
-    is_background_image = FALSE;
+    sidebar_flags &= ~FLAG_IS_BACKGROUND_IMAGE;
     sidebar_flags &= ~FLAG_IS_BACKGROUND;
     g_crop_x = 0;
     g_crop_y = 0;
@@ -4337,12 +4355,12 @@ if (panel_background[0] != '\0') {
         sidebar_flags &= ~FLAG_IS_BACKGROUND;
         cairo_surface_destroy(background_source);
         background_source = NULL;
-        is_background_image = FALSE;
+        sidebar_flags &= ~FLAG_IS_BACKGROUND_IMAGE;
     } else {
         background_width = cairo_image_surface_get_width(background_source);
         background_height = cairo_image_surface_get_height(background_source);
         sidebar_flags |= FLAG_IS_BACKGROUND;
-        is_background_image = TRUE;
+        sidebar_flags |= FLAG_IS_BACKGROUND_IMAGE;
         g_crop_x = (background_width > width) ? (background_width - width) / 2 : 0;
         g_crop_y = (background_height > window_height) ? (background_height - window_height) / 2 : 0;
     }
@@ -4358,7 +4376,7 @@ if (!background_source) {
         background_width = width;
         background_height = window_height;
         sidebar_flags |= FLAG_IS_BACKGROUND;
-        is_background_image = FALSE;
+        sidebar_flags &= ~FLAG_IS_BACKGROUND_IMAGE;
     } 
 }
     gtk_widget_set_app_paintable(window, TRUE);
@@ -4610,20 +4628,34 @@ static gboolean check_wifi_available(void) {
 
 
 static gboolean check_bluetooth_available(void) {
-    GError *e = NULL;
-    GDBusConnection *c = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &e);
-    if (!c) return FALSE;
-    GVariant *r = g_dbus_connection_call_sync(
-        c, BT_DBUS_SERVICE, "/org/bluez/hci0", "org.freedesktop.DBus.Properties", "Get",
-        g_variant_new("(ss)", "org.bluez.Adapter1", "Address"),
-        NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &e
+    GError *error = NULL;
+    GDBusConnection *conn = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
+    if (!conn) {
+        g_clear_error(&error);
+        return FALSE;
+    }
+    GVariant *iface = g_variant_new_string("org.bluez.Adapter1");
+    GVariant *prop = g_variant_new_string("Address");
+    GVariant *params = g_variant_new_tuple((GVariant *[]){ iface, prop }, 2);
+    GVariant *result = g_dbus_connection_call_sync(
+        conn,
+        "org.bluez",
+        "/org/bluez/hci0",
+        "org.freedesktop.DBus.Properties",
+        "Get",
+        params,
+        NULL,
+        G_DBUS_CALL_FLAGS_NONE,
+        2000,
+        NULL,
+        &error
     );
-    gboolean ok = (r != NULL);
-    if (r) g_variant_unref(r);
-    g_object_unref(c);
+    gboolean ok = (result != NULL);
+    if (result) g_variant_unref(result);
+    g_clear_error(&error);
+    g_object_unref(conn);
     return ok;
 }
-
 
 
 
@@ -5091,16 +5123,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     setlocale(LC_NUMERIC, "C");
-if (check_wifi_available()) {
-    sidebar_flags |= FLAG_HAS_WIFI;
-} else {
-    sidebar_flags &= ~FLAG_HAS_WIFI;
-}
-if (check_bluetooth_available()) {
-    sidebar_flags |= FLAG_HAS_BLUETOOTH;
-} else {
-    sidebar_flags &= ~FLAG_HAS_BLUETOOTH;
-}
     GdkScreen *screen = gdk_screen_get_default();
     g_signal_connect(screen, "size-changed", G_CALLBACK(on_screen_size_changed), NULL);
     signal(SIGUSR1, handle_signal); //toggle panel visibility
