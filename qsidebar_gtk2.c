@@ -149,7 +149,9 @@ enum SidebarFlags {
     FLAG_TRANSPARENT_CLICK_MODE  = 1 << 14,
     FLAG_EXTEND_MODE             = 1 << 15,
     FLAG_PROJECT_EXTEND_FULL_HEIGHT = 1 << 16,
-    FLAG_IS_BACKGROUND_IMAGE = 1 << 17
+    FLAG_IS_BACKGROUND_IMAGE = 1 << 17,
+    FLAG_WIFI_TESTDONE  = 1 << 18,
+    FLAG_BT_TESTDONE = 1 << 19
 };
 
 
@@ -1394,8 +1396,8 @@ static void handle_project_action(const char *action) {
                 for (int j = 0; j < output_info->nmode; j++) {
                     for (int k = 0; k < resources->nmode; k++) {
                         if (resources->modes[k].id == output_info->modes[j] &&
-                            resources->modes[k].width == primary_width &&
-                            resources->modes[k].height == primary_height) {
+                            (int)resources->modes[k].width == primary_width &&
+                            (int)resources->modes[k].height == primary_height) {
                             secondary_mode = output_info->modes[j];
                             secondary_width = primary_width;
                             secondary_height = primary_height;
@@ -1965,6 +1967,8 @@ void load_config() {
     sidebar_flags &= ~FLAG_PROJECT_EXTEND_FULL_HEIGHT;
     sidebar_flags &= ~FLAG_TRINITY_APPLET;
     sidebar_flags &= ~FLAG_IS_BACKGROUND_IMAGE;
+    sidebar_flags &= ~FLAG_BT_TESTDONE;
+    sidebar_flags &= ~FLAG_WIFI_TESTDONE;
     for (int i = 0; i < MAX_BUTTONS; i++) {
         button_configs[i].name[0] = '\0';
         button_configs[i].type[0] = '\0';
@@ -2408,31 +2412,48 @@ else if (strcmp(key, "option_tint") == 0) {
         continue;
     if (button_idx > max_button_idx)
         max_button_idx = button_idx;
-         button_configs[button_idx].icon_only = FALSE;
+    button_configs[button_idx].icon_only = FALSE;
     if (strcmp(property, "name") == 0) {
-       if (strcmp(value, "{wifi}") == 0) {
-        if (!(sidebar_flags & FLAG_HAS_WIFI)) {
-            if (check_wifi_available()) {
-                sidebar_flags |= FLAG_HAS_WIFI;
-            } else {
+        if (strcmp(value, "{wifi}") == 0) {
+            if (!(sidebar_flags & FLAG_WIFI_TESTDONE)) {
+                if (check_wifi_available()) {
+                    sidebar_flags |= FLAG_HAS_WIFI;
+                } else {
+                    continue;
+                }
+            } else if (!(sidebar_flags & FLAG_HAS_WIFI)) {
                 continue;
             }
         }
-    }
-    if (strcmp(value, "{bluetooth}") == 0) {
-        if (!(sidebar_flags & FLAG_HAS_BLUETOOTH)) {
-            if (check_bluetooth_available()) {
-                sidebar_flags |= FLAG_HAS_BLUETOOTH;
-            } else {
+        if (strcmp(value, "{bluetooth}") == 0) {
+            if (!(sidebar_flags & FLAG_BT_TESTDONE)) {
+                if (check_bluetooth_available()) {
+                    sidebar_flags |= FLAG_HAS_BLUETOOTH;
+                } else {
+                    continue;
+                }
+            } else if (!(sidebar_flags & FLAG_HAS_BLUETOOTH)) {
                 continue;
             }
         }
-    }
         if (strcmp(value, "{wifi}") == 0) {
             button_configs[button_idx].is_preprogrammed = TRUE;
             strncpy(button_configs[button_idx].name, "Wifi", MAX_LINE_LENGTH - 1);
             strncpy(button_configs[button_idx].type, "toggle", MAX_LINE_LENGTH - 1);
         } else if (strcmp(value, "{airplane}") == 0) {
+            if (!(sidebar_flags & FLAG_WIFI_TESTDONE)) {
+                if (check_wifi_available()) {
+                    sidebar_flags |= FLAG_HAS_WIFI;
+                }
+            }
+            if (!(sidebar_flags & FLAG_BT_TESTDONE)) {
+                if (check_bluetooth_available()) {
+                    sidebar_flags |= FLAG_HAS_BLUETOOTH;
+                }
+            }
+            if (!(sidebar_flags & FLAG_HAS_WIFI) && !(sidebar_flags & FLAG_HAS_BLUETOOTH)) {
+                continue;
+            }
             button_configs[button_idx].is_preprogrammed = TRUE;
             strncpy(button_configs[button_idx].name, "Airplane mode", MAX_LINE_LENGTH - 1);
             strncpy(button_configs[button_idx].type, "toggle", MAX_LINE_LENGTH - 1);
@@ -2877,7 +2898,7 @@ static void on_button_clicked(GtkWidget *widget, gpointer user_data) {
 
 
 
-static void on_window_destroy(GtkWidget *widget, gpointer data) {
+static void on_window_destroy(GtkWidget *widget __attribute__((unused)), gpointer data __attribute__((unused))) {
     if (!restart_requested && gtk_main_level() > 0) {
         gtk_main_quit();
     }
@@ -4190,21 +4211,19 @@ if (sidebar_flags & FLAG_FOCUS_ASSIST) {
         }
 if (sidebar_flags & FLAG_TRINITY_APPLET) {
     if ((sidebar_flags & FLAG_DARKMODE) && !(sidebar_flags & FLAG_TRAYCOLORMODE)) {
-        int result = set_sidebar_icon(
+       set_sidebar_icon(
             icon_path,
             TRUE,
             (sidebar_flags & FLAG_FOCUS_ASSIST) != 0,
             (sidebar_flags & FLAG_NOTIF_HIDE_ICON) != 0,
-            !(sidebar_flags & FLAG_NOTIF_NUMBER_INDICATOR)
-        );
+            !(sidebar_flags & FLAG_NOTIF_NUMBER_INDICATOR));
     } else {
-        int result = set_sidebar_icon(
+      set_sidebar_icon(
             icon_path,
             FALSE,
             (sidebar_flags & FLAG_FOCUS_ASSIST) != 0,
             (sidebar_flags & FLAG_NOTIF_HIDE_ICON) != 0,
-            !(sidebar_flags & FLAG_NOTIF_NUMBER_INDICATOR)
-        );
+            !(sidebar_flags & FLAG_NOTIF_NUMBER_INDICATOR));
     }
 }
     } else {
@@ -4602,7 +4621,6 @@ gboolean set_airplane_mode(gboolean enable) {
 
 
 
-
 static gboolean check_wifi_available(void) {
     NMClient *client = nm_client_new(NULL, NULL);
     if (!client) {
@@ -4617,15 +4635,14 @@ static gboolean check_wifi_available(void) {
         NMDevice *device = g_ptr_array_index(devices, i);
         if (NM_IS_DEVICE_WIFI(device)) {
             g_object_unref(client);
+            sidebar_flags |= FLAG_WIFI_TESTDONE;
             return TRUE;
         }
     }
     g_object_unref(client);
+    sidebar_flags |= FLAG_WIFI_TESTDONE;
     return FALSE;
 }
-
-
-
 
 static gboolean check_bluetooth_available(void) {
     GError *error = NULL;
@@ -4654,8 +4671,10 @@ static gboolean check_bluetooth_available(void) {
     if (result) g_variant_unref(result);
     g_clear_error(&error);
     g_object_unref(conn);
+    sidebar_flags |= FLAG_BT_TESTDONE;
     return ok;
 }
+
 
 
 
