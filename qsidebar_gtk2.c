@@ -2534,6 +2534,10 @@ static GtkWidget* create_quick_settings_panel(int width, int height);
 
 
 gboolean recreate_original_buttons(gpointer user_data __attribute__((unused))) {
+    if (anim_data->is_animating) {
+        g_timeout_add(200, recreate_original_buttons, NULL);
+        return FALSE;
+    }
     GtkWidget *window = anim_data->window;
     GtkWidget *box = gtk_bin_get_child(GTK_BIN(window));
     GList *children = gtk_container_get_children(GTK_CONTAINER(box));
