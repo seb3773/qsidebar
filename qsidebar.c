@@ -17,6 +17,7 @@
 #include <gdk/gdkx.h>
 #include <dbus/dbus.h>
 #include <pthread.h>
+#include <sys/wait.h>
 #include "qsidebar_dcop.h"
 
 #define NM_DBUS_SERVICE      "org.freedesktop.NetworkManager"
@@ -877,8 +878,10 @@ gtk_window_resize(GTK_WINDOW(anim_data->window), anim_data->width, window_height
 
 
 
-
 static void handle_project_action(const char *action) {
+    if (!action) {
+        return;
+    }
     DisplayInfo displays = get_display_info();
     if (displays.primary_display[0] == '\0') {
         g_print("No primary display found\n");
@@ -916,12 +919,15 @@ static void handle_project_action(const char *action) {
     RRMode secondary_mode = None;
     XRROutputInfo *primary_output_info = NULL;
     XRROutputInfo *secondary_output_info = NULL;
-    // detect primary res & try to find compatible secondary mode
+    XRRCrtcInfo *crtc_info = NULL;
     int primary_width = 0, primary_height = 0;
     int secondary_width = 0, secondary_height = 0;
     for (int i = 0; i < resources->noutput; i++) {
         XRROutputInfo *output_info = XRRGetOutputInfo(dpy, resources, resources->outputs[i]);
-        if (!output_info || output_info->connection != RR_Connected) {
+        if (!output_info) {
+            continue;
+        }
+        if (output_info->connection != RR_Connected) {
             XRRFreeOutputInfo(output_info);
             continue;
         }
@@ -929,12 +935,13 @@ static void handle_project_action(const char *action) {
             primary_output = resources->outputs[i];
             primary_output_info = output_info;
             if (output_info->crtc) {
-                XRRCrtcInfo *crtc_info = XRRGetCrtcInfo(dpy, resources, output_info->crtc);
+                crtc_info = XRRGetCrtcInfo(dpy, resources, output_info->crtc);
                 if (crtc_info) {
                     primary_width = crtc_info->width;
                     primary_height = crtc_info->height;
                     primary_mode = crtc_info->mode;
                     XRRFreeCrtcInfo(crtc_info);
+                    crtc_info = NULL;
                 }
             }
             if (!primary_mode && output_info->nmode > 0) {
@@ -947,7 +954,8 @@ static void handle_project_action(const char *action) {
                     }
                 }
             }
-        } else if (displays.has_secondary && strcmp(output_info->name, displays.secondary_display) == 0) {
+        } 
+        else if (displays.has_secondary && strcmp(output_info->name, displays.secondary_display) == 0) {
             secondary_output = resources->outputs[i];
             secondary_output_info = output_info;
             if (primary_width > 0 && primary_height > 0) {
@@ -1040,21 +1048,26 @@ static void handle_project_action(const char *action) {
         }
         XRRSetScreenSize(dpy, root, primary_width, primary_height,
                          primary_width * 25 / 10, primary_height * 25 / 10);
-       sidebar_flags |= FLAG_JUST_CHANGED_CONFIG;
-       sidebar_flags &= ~FLAG_EXTEND_MODE;
+        sidebar_flags |= FLAG_JUST_CHANGED_CONFIG;
+        sidebar_flags &= ~FLAG_EXTEND_MODE;
         XSync(dpy, False);
         {
             GdkDisplay *gdk_display = gdk_display_get_default();
-            GdkMonitor *monitor = gdk_display_get_monitor(gdk_display, 0);
-            GdkRectangle workarea;
-            gdk_monitor_get_workarea(monitor, &workarea);
-            anim_data->start_x = workarea.width;
-            anim_data->target_x = workarea.width - anim_data->width;
-            anim_data->current_x = anim_data->start_x;
-            gtk_window_move(GTK_WINDOW(anim_data->window), anim_data->start_x, anim_data->y_position);
-            update_window_sizes(anim_data);
+            if (gdk_display) {
+                GdkMonitor *monitor = gdk_display_get_monitor(gdk_display, 0);
+                if (monitor && anim_data) {
+                    GdkRectangle workarea;
+                    gdk_monitor_get_workarea(monitor, &workarea);
+                    anim_data->start_x = workarea.width;
+                    anim_data->target_x = workarea.width - anim_data->width;
+                    anim_data->current_x = anim_data->start_x;
+                    gtk_window_move(GTK_WINDOW(anim_data->window), anim_data->start_x, anim_data->y_position);
+                    update_window_sizes(anim_data);
+                }
+            }
         }
-    } else if (strcmp(action, "Duplicate") == 0) {
+    } 
+    else if (strcmp(action, "Duplicate") == 0) {
         XRRSetOutputPrimary(dpy, root, primary_output);
         status = XRRSetCrtcConfig(dpy, resources, primary_crtc,
                                   CurrentTime, 0, 0, primary_mode,
@@ -1064,7 +1077,6 @@ static void handle_project_action(const char *action) {
             goto cleanup;
         }
         XSync(dpy, False);
-
         if (secondary_crtc == None) {
             secondary_crtc = find_available_crtc(dpy, resources, primary_crtc);
             if (secondary_crtc == None) {
@@ -1079,24 +1091,28 @@ static void handle_project_action(const char *action) {
             g_print("Failed to configure secondary display for duplication (%d)\n", status);
             goto cleanup;
         }
-        //        g_print("Setting screen size: %dx%d\n", primary_width, primary_height);
         XRRSetScreenSize(dpy, root, primary_width, primary_height,
                          primary_width * 25 / 10, primary_height * 25 / 10);
         sidebar_flags |= FLAG_JUST_CHANGED_CONFIG;
-       sidebar_flags &= ~FLAG_EXTEND_MODE;
+        sidebar_flags &= ~FLAG_EXTEND_MODE;
         XSync(dpy, False);
         {
             GdkDisplay *gdk_display = gdk_display_get_default();
-            GdkMonitor *monitor = gdk_display_get_monitor(gdk_display, 0);
-            GdkRectangle workarea;
-            gdk_monitor_get_workarea(monitor, &workarea);
-            anim_data->start_x = workarea.width;
-            anim_data->target_x = workarea.width - anim_data->width;
-            anim_data->current_x = anim_data->start_x;
-            gtk_window_move(GTK_WINDOW(anim_data->window), anim_data->start_x, anim_data->y_position);
-            update_window_sizes(anim_data);
+            if (gdk_display) {
+                GdkMonitor *monitor = gdk_display_get_monitor(gdk_display, 0);
+                if (monitor && anim_data) {
+                    GdkRectangle workarea;
+                    gdk_monitor_get_workarea(monitor, &workarea);
+                    anim_data->start_x = workarea.width;
+                    anim_data->target_x = workarea.width - anim_data->width;
+                    anim_data->current_x = anim_data->start_x;
+                    gtk_window_move(GTK_WINDOW(anim_data->window), anim_data->start_x, anim_data->y_position);
+                    update_window_sizes(anim_data);
+                }
+            }
         }
-    } else if (strcmp(action, "Extend") == 0) {
+    } 
+    else if (strcmp(action, "Extend") == 0) {
         XRRSetOutputPrimary(dpy, root, primary_output);
         status = XRRSetCrtcConfig(dpy, resources, primary_crtc,
                                   CurrentTime, 0, 0, primary_mode,
@@ -1126,14 +1142,15 @@ static void handle_project_action(const char *action) {
         sidebar_flags |= FLAG_EXTEND_MODE;
         total_display_width = primary_width + secondary_width;
         XSync(dpy, False);
-        {
+        if (anim_data) {
             anim_data->start_x = primary_width + secondary_width;
             anim_data->target_x = (primary_width + secondary_width) - anim_data->width;
             anim_data->current_x = anim_data->start_x;
             gtk_window_move(GTK_WINDOW(anim_data->window), anim_data->start_x, anim_data->y_position);
             update_window_sizes(anim_data);
         }
-    } else if (strcmp(action, "Second screen only") == 0) {
+    } 
+    else if (strcmp(action, "Second screen only") == 0) {
         if (secondary_crtc == None) {
             secondary_crtc = find_available_crtc(dpy, resources, None);
             if (secondary_crtc == None) {
@@ -1153,21 +1170,36 @@ static void handle_project_action(const char *action) {
         XSync(dpy, False);
         {
             GdkDisplay *gdk_display = gdk_display_get_default();
-            GdkMonitor *monitor = gdk_display_get_monitor(gdk_display, 0);
-            GdkRectangle workarea;
-            gdk_monitor_get_workarea(monitor, &workarea);
-            anim_data->start_x = workarea.width;
-            anim_data->target_x = workarea.width - anim_data->width;
-            anim_data->current_x = anim_data->start_x;
-            gtk_window_move(GTK_WINDOW(anim_data->window), anim_data->start_x, anim_data->y_position);
-            update_window_sizes(anim_data);
+            if (gdk_display) {
+                GdkMonitor *monitor = gdk_display_get_monitor(gdk_display, 0);
+                if (monitor && anim_data) {
+                    GdkRectangle workarea;
+                    gdk_monitor_get_workarea(monitor, &workarea);
+                    anim_data->start_x = workarea.width;
+                    anim_data->target_x = workarea.width - anim_data->width;
+                    anim_data->current_x = anim_data->start_x;
+                    gtk_window_move(GTK_WINDOW(anim_data->window), anim_data->start_x, anim_data->y_position);
+                    update_window_sizes(anim_data);
+                }
+            }
         }
-    } 
+    }
 cleanup:
-    if (primary_output_info) XRRFreeOutputInfo(primary_output_info);
-    if (secondary_output_info) XRRFreeOutputInfo(secondary_output_info);
-    XRRFreeScreenResources(resources);
-    XCloseDisplay(dpy);
+    if (crtc_info) {
+        XRRFreeCrtcInfo(crtc_info);
+    }
+    if (primary_output_info) {
+        XRRFreeOutputInfo(primary_output_info);
+    }
+    if (secondary_output_info) {
+        XRRFreeOutputInfo(secondary_output_info);
+    }
+    if (resources) {
+        XRRFreeScreenResources(resources);
+    }
+    if (dpy) {
+        XCloseDisplay(dpy);
+    }
 }
 
 
@@ -1326,16 +1358,24 @@ int is_night_light_on() {
 
 
 void execute_command(const char *cmd) {
-    if (cmd && cmd[0] != '\0') {
-        pid_t pid = fork();
-        if (pid == 0) {
-            system(cmd);
-            exit(0);
-        }
+    if (!cmd || cmd[0] == '\0') {
+        return;
+    }
+    GError *error = NULL;
+    gchar *argv[] = { "/bin/sh", "-c", (char *)cmd, NULL };
+    gboolean success = g_spawn_async(NULL,
+                                    argv,
+                                    NULL,
+                                    G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD,
+                                    NULL,
+                                    NULL,
+                                    NULL,
+                                    &error);
+    if (!success) {
+        g_warning("Failed to execute command '%s': %s", cmd, error->message);
+        g_error_free(error);
     }
 }
-
-
 
 
 int execute_command_get_result(const char *cmd) {
@@ -1347,15 +1387,16 @@ int execute_command_get_result(const char *cmd) {
             return 0;
         }
         char output[10];
-        if (fgets(output, sizeof(output) - 1, fp) != NULL) {
+        if (fgets(output, sizeof(output), fp) != NULL) {
+            output[sizeof(output) - 1] = '\0';
+            int result = atoi(output);
             pclose(fp);
-            return atoi(output);
+            return result;
         }
         pclose(fp);
     }
     return 0;
 }
-
 
 static void update_systray_icon(void);
 
@@ -2125,7 +2166,6 @@ gboolean recreate_original_buttons(gpointer user_data);
 static GtkWidget* create_quick_settings_panel(int width, int height);
 
 
-
 gboolean recreate_original_buttons(gpointer user_data __attribute__((unused))) {
     if (anim_data->is_animating) {
         g_timeout_add(200, recreate_original_buttons, NULL);
@@ -2142,6 +2182,7 @@ gboolean recreate_original_buttons(gpointer user_data __attribute__((unused))) {
         iter = iter->next;
     }
     g_list_free(children);
+    delete_notifications_button = NULL;
     GtkWidget *header_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     gtk_box_pack_start(GTK_BOX(box), header_box, FALSE, FALSE, 10);
     GtkWidget *label = gtk_label_new(panel_title);
@@ -2170,7 +2211,6 @@ gboolean recreate_original_buttons(gpointer user_data __attribute__((unused))) {
     }
     return FALSE;
 }
-
 
 
 
@@ -2340,72 +2380,102 @@ void show_confirmation_dialog(ButtonConfig *config, GtkWidget *parent_widget) {
 
 
 
-
 static void on_button_clicked(GtkWidget *widget, gpointer user_data) {
+    if (!widget || !user_data) {
+        return;
+    }
     ButtonConfig *config = (ButtonConfig *)user_data;
+    if (config->type[0] == '\0' || config->name[0] == '\0') {
+        return;
+    }
     if (strcmp(config->type, "toggle") == 0) {
         if (config->is_preprogrammed) {
+            gboolean state_changed = FALSE;
             if (strcmp(config->name, "Wifi") == 0) {
                 if (set_wifi_status(!config->is_active)) {
                     config->is_active = !config->is_active;
+                    state_changed = TRUE;
                     if (config->is_active) {
                         for (int i = 0; i < MAX_BUTTONS; i++) {
-                            if (strcmp(button_configs[i].name, "Airplane mode") == 0) {
+                            if (button_configs[i].name[0] != '\0' && 
+                                strcmp(button_configs[i].name, "Airplane mode") == 0 &&
+                                button_configs[i].button) {
                                 GtkStyleContext *context = gtk_widget_get_style_context(button_configs[i].button);
-                                gtk_style_context_remove_class(context, "active-toggle");
-                                button_configs[i].is_active = FALSE;
+                                if (context) {
+                                    gtk_style_context_remove_class(context, "active-toggle");
+                                    button_configs[i].is_active = FALSE;
+                                    update_button_icon(button_configs[i].button, button_configs[i].is_active);
+                                    gtk_widget_queue_draw(button_configs[i].button);
+                                }
+                            }
+                        }
+                    }
+                }
+            } 
+            else if (strcmp(config->name, "Airplane mode") == 0) {
+                if (set_airplane_mode(!config->is_active)) {
+                    config->is_active = !config->is_active;
+                    state_changed = TRUE;
+                    for (int i = 0; i < MAX_BUTTONS; i++) {
+                        if (button_configs[i].name[0] != '\0' && button_configs[i].button &&
+                            (strcmp(button_configs[i].name, "Wifi") == 0 || 
+                             strcmp(button_configs[i].name, "Bluetooth") == 0)) {
+                            GtkStyleContext *context = gtk_widget_get_style_context(button_configs[i].button);
+                            if (context) {
+                                button_configs[i].is_active = !config->is_active;
+                                if (button_configs[i].is_active) {
+                                    gtk_style_context_add_class(context, "active-toggle");
+                                } else {
+                                    gtk_style_context_remove_class(context, "active-toggle");
+                                }
                                 update_button_icon(button_configs[i].button, button_configs[i].is_active);
                                 gtk_widget_queue_draw(button_configs[i].button);
                             }
                         }
                     }
                 }
-            } else if (strcmp(config->name, "Airplane mode") == 0) {
-                if (set_airplane_mode(!config->is_active)) {
-                    config->is_active = !config->is_active;
-                    for (int i = 0; i < MAX_BUTTONS; i++) {
-                        if (strcmp(button_configs[i].name, "Wifi") == 0 || strcmp(button_configs[i].name, "Bluetooth") == 0) {
-                            GtkStyleContext *context = gtk_widget_get_style_context(button_configs[i].button);
-                            button_configs[i].is_active = !config->is_active;
-                            if (button_configs[i].is_active) {
-                                gtk_style_context_add_class(context, "active-toggle");
-                            } else {
-                                gtk_style_context_remove_class(context, "active-toggle");
-                            }
-                            update_button_icon(button_configs[i].button, button_configs[i].is_active);
-                            gtk_widget_queue_draw(button_configs[i].button);
-                        }
-                    }
-                }
-            } else if (strcmp(config->name, "Night light") == 0) {
+            } 
+            else if (strcmp(config->name, "Night light") == 0) {
                 toggle_night_light();
                 config->is_active = !config->is_active;
-            } else if (strcmp(config->name, "Bluetooth") == 0) {
+                state_changed = TRUE;
+            } 
+            else if (strcmp(config->name, "Bluetooth") == 0) {
                 gboolean target_state = !config->is_active;
                 if (set_bluetooth_status(target_state)) {
                     if (target_state) {
                         execute_command("bluetoothctl power on > /dev/null 2>&1");
                     }
                     config->is_active = target_state;
+                    state_changed = TRUE;
                 }
-            } else if (strcmp(config->name, "Focus Assist") == 0) {
-               sidebar_flags ^= FLAG_FOCUS_ASSIST;
-               config->is_active = (sidebar_flags & FLAG_FOCUS_ASSIST) != 0;
-               update_systray_icon();
-           }
-            GtkStyleContext *context = gtk_widget_get_style_context(widget);
-            if (config->is_active) {
-                gtk_style_context_add_class(context, "active-toggle");
-            } else {
-                gtk_style_context_remove_class(context, "active-toggle");
+            } 
+            else if (strcmp(config->name, "Focus Assist") == 0) {
+                sidebar_flags ^= FLAG_FOCUS_ASSIST;
+                config->is_active = (sidebar_flags & FLAG_FOCUS_ASSIST) != 0;
+                update_systray_icon();
+                state_changed = TRUE;
             }
-            update_button_icon(widget, config->is_active);
-            gtk_widget_queue_draw(widget);
+            if (state_changed) {
+                GtkStyleContext *context = gtk_widget_get_style_context(widget);
+                if (context) {
+                    if (config->is_active) {
+                        gtk_style_context_add_class(context, "active-toggle");
+                    } else {
+                        gtk_style_context_remove_class(context, "active-toggle");
+                    }
+                    update_button_icon(widget, config->is_active);
+                    gtk_widget_queue_draw(widget);
+                }
+            }
             return;
         }
     }
     if (config->is_preprogrammed) {
         if (strcmp(config->name, "Project") == 0) {
+              if (!anim_data) {
+                return;
+            }
             if (!anim_data->is_animating) {
                 if (render_options.anim_type == ANIM_TYPE_NONE) {
                     anim_data->current_x = anim_data->start_x;
@@ -2436,60 +2506,70 @@ static void on_button_clicked(GtkWidget *widget, gpointer user_data) {
                 }
             }
             return;
-        } else if (strcmp(config->name, "PC screen only") == 0) {
+        } 
+         else if (strcmp(config->name, "PC screen only") == 0) {
             handle_project_action("PC screen only");
-        } else if (strcmp(config->name, "Duplicate") == 0) {
+        } 
+        else if (strcmp(config->name, "Duplicate") == 0) {
             handle_project_action("Duplicate");
-        } else if (strcmp(config->name, "Extend") == 0) {
+        } 
+        else if (strcmp(config->name, "Extend") == 0) {
             handle_project_action("Extend");
-        } else if (strcmp(config->name, "Second screen only") == 0) {
+        } 
+        else if (strcmp(config->name, "Second screen only") == 0) {
             handle_project_action("Second screen only");
         }
-        if (render_options.anim_type == ANIM_TYPE_NONE) {
-            anim_data->current_x = anim_data->start_x;
-            anim_data->current_opacity = 0.0;
-            gtk_widget_hide(anim_data->window);
-            if (anim_data->click_window) {
-                gtk_widget_hide(anim_data->click_window);
-            }
-            anim_data->is_opening = FALSE;
-            if (strcmp(config->name, "PC screen only") == 0 ||
-                strcmp(config->name, "Duplicate") == 0 ||
-                strcmp(config->name, "Extend") == 0 ||
-                strcmp(config->name, "Second screen only") == 0) {
-                recreate_original_buttons(NULL);
-            }
-        } else {
-            if (render_options.anim_type == ANIM_TYPE_SLIDE) {
-                anim_data->target_x = anim_data->start_x;
-            } else if (render_options.anim_type == ANIM_TYPE_FADE) {
-                anim_data->target_opacity = 0.0;
-            } else if (render_options.anim_type == ANIM_TYPE_SLFD) {
-                anim_data->target_x = anim_data->start_x;
-                anim_data->target_opacity = 0.0;
-            }
-            anim_data->is_animating = TRUE;
-            anim_data->is_opening = FALSE;
-            g_timeout_add(8, animate_window, anim_data);
-            if (strcmp(config->name, "PC screen only") == 0 ||
-                strcmp(config->name, "Duplicate") == 0 ||
-                strcmp(config->name, "Extend") == 0 ||
-                strcmp(config->name, "Second screen only") == 0) {
-                g_timeout_add(200, (GSourceFunc)recreate_original_buttons, NULL);
+        if (anim_data) {
+            if (render_options.anim_type == ANIM_TYPE_NONE) {
+                anim_data->current_x = anim_data->start_x;
+                anim_data->current_opacity = 0.0;
+                gtk_widget_hide(anim_data->window);
+                if (anim_data->click_window) {
+                    gtk_widget_hide(anim_data->click_window);
+                }
+                anim_data->is_opening = FALSE;
+                if (strcmp(config->name, "PC screen only") == 0 ||
+                    strcmp(config->name, "Duplicate") == 0 ||
+                    strcmp(config->name, "Extend") == 0 ||
+                    strcmp(config->name, "Second screen only") == 0) {
+                    recreate_original_buttons(NULL);
+                }
+            } else {
+                if (render_options.anim_type == ANIM_TYPE_SLIDE) {
+                    anim_data->target_x = anim_data->start_x;
+                } else if (render_options.anim_type == ANIM_TYPE_FADE) {
+                    anim_data->target_opacity = 0.0;
+                } else if (render_options.anim_type == ANIM_TYPE_SLFD) {
+                    anim_data->target_x = anim_data->start_x;
+                    anim_data->target_opacity = 0.0;
+                }
+                anim_data->is_animating = TRUE;
+                anim_data->is_opening = FALSE;
+                g_timeout_add(8, animate_window, anim_data);
+                if (strcmp(config->name, "PC screen only") == 0 ||
+                    strcmp(config->name, "Duplicate") == 0 ||
+                    strcmp(config->name, "Extend") == 0 ||
+                    strcmp(config->name, "Second screen only") == 0) {
+                    g_timeout_add(200, (GSourceFunc)recreate_original_buttons, NULL);
+                }
             }
         }
     } else {
         if (config->confirm_cmd) {
-            show_confirmation_dialog(config, gtk_widget_get_toplevel(widget));
-        } else {
+            GtkWidget *toplevel = gtk_widget_get_toplevel(widget);
+            if (toplevel && gtk_widget_is_toplevel(toplevel)) {
+                show_confirmation_dialog(config, toplevel);
+            }
+        } else if (config->cmd[0] != '\0') {
             execute_command(config->cmd);
         }
     }
-    if ((strcmp(config->type, "oneshot") == 0 && anim_data != NULL) ||
-        (config->is_preprogrammed && (strcmp(config->name, "PC screen only") == 0 ||
-                                      strcmp(config->name, "Duplicate") == 0 ||
-                                      strcmp(config->name, "Extend") == 0 ||
-                                      strcmp(config->name, "Second screen only") == 0))) {
+    if (((strcmp(config->type, "oneshot") == 0 && anim_data != NULL) ||
+         (config->is_preprogrammed && (strcmp(config->name, "PC screen only") == 0 ||
+                                       strcmp(config->name, "Duplicate") == 0 ||
+                                       strcmp(config->name, "Extend") == 0 ||
+                                       strcmp(config->name, "Second screen only") == 0))) &&
+        anim_data) {
         if (render_options.anim_type == ANIM_TYPE_NONE) {
             anim_data->current_x = anim_data->start_x;
             anim_data->current_opacity = 0.0;
@@ -3095,17 +3175,17 @@ static void add_notification_to_panel(GtkWidget *box, int width, int height) {
         GtkWidget *c = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
         gtk_widget_set_size_request(c, -1, notif_available_height);
         GtkWidget *l = gtk_label_new("No new notifications");
-        #pragma GCC diagnostic push
-        #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
         gtk_widget_override_font(l, panel_font_desc);
-        #pragma GCC diagnostic pop
+#pragma GCC diagnostic pop
         gtk_widget_set_halign(l, GTK_ALIGN_CENTER);
         gtk_widget_set_valign(l, GTK_ALIGN_CENTER);
         gtk_style_context_add_class(gtk_widget_get_style_context(l), "project-label");
         gtk_box_pack_start(GTK_BOX(c), l, TRUE, TRUE, 0);
         gtk_box_pack_start(GTK_BOX(notif_box), c, FALSE, FALSE, NOTIF_BOX_SPACING);
     }
-    if (GTK_IS_WIDGET(delete_notifications_button)) {
+    if (delete_notifications_button && GTK_IS_WIDGET(delete_notifications_button)) {
         if (n >= 2)
             gtk_widget_show(delete_notifications_button);
         else
@@ -3113,7 +3193,6 @@ static void add_notification_to_panel(GtkWidget *box, int width, int height) {
     }
     gtk_widget_show_all(notif_box);
 }
-
 
 
 
@@ -3763,6 +3842,10 @@ static void cleanup_sidebar(void) {
         free(backlight_info.directory);
         backlight_info.directory = NULL;
     }
+        if (background_source) {
+        cairo_surface_destroy(background_source);
+        background_source = NULL;
+    }
     notification_sound = NULL;
 }
 
@@ -4070,7 +4153,6 @@ static void main_sidebar(void) {
     g_signal_connect(window, "draw", G_CALLBACK(on_draw), NULL);
     gtk_widget_show_all(window);
     gtk_main();
-    cairo_surface_destroy(background_source);
     cleanup_sidebar();
 }
 
