@@ -45,7 +45,7 @@
 #define QUICKSETTINGS_BUTTON_MARGIN    5
 #define QUICKSETTINGS_BUTTONS_PER_ROW  4
 #define NOTIF_BOX_SPACING 5
-#define NOTIF_LABEL_WIDTH 16
+#define NOTIF_LABEL_WIDTH 24
 
 #define DEFAULT_CONFIG_CONTENT \
 "[General settings]\n" \
@@ -174,7 +174,7 @@ char panel_background[MAX_LINE_LENGTH];
 static volatile sig_atomic_t restart_requested = 0;
 static int total_display_width = 0;
 static char *username = NULL;
-static GdkFilterReturn xrandr_event_filter(GdkXEvent *xevent, GdkEvent *event, gpointer data);
+//static GdkFilterReturn xrandr_event_filter(GdkXEvent *xevent, GdkEvent *event, gpointer data);
 static gboolean show_project_buttons_with_animation(gpointer user_data);
 static cairo_surface_t *slider_background = NULL;
 static int g_crop_x = 0;
@@ -466,8 +466,8 @@ enum {
 };
 
 static guint custom_slider_signals[LAST_SIGNAL] = { 0 };
-static void custom_slider_class_init(CustomSliderClass *klass);
-static void custom_slider_init(CustomSlider *slider);
+static void custom_slider_class_init(CustomSliderClass *klass, gpointer class_data);
+static void custom_slider_init(CustomSlider *slider, gpointer class_data);
 static gboolean custom_slider_expose(GtkWidget *widget, GdkEventExpose *event);
 static gboolean custom_slider_button_press(GtkWidget *widget, GdkEventButton *event);
 static gboolean custom_slider_button_release(GtkWidget *widget, GdkEventButton *event);
@@ -498,25 +498,28 @@ GType custom_slider_get_type(void) {
 }
 
 
-static void custom_slider_class_init(CustomSliderClass *klass) {
+static void custom_slider_class_init(CustomSliderClass *klass, gpointer class_data __attribute__((unused)))
+{
     GtkWidgetClass *widget_class;
     widget_class = GTK_WIDGET_CLASS(klass);
     widget_class->expose_event = custom_slider_expose;
     widget_class->button_press_event = custom_slider_button_press;
     widget_class->button_release_event = custom_slider_button_release;
     widget_class->motion_notify_event = custom_slider_motion_notify;
-    custom_slider_signals[VALUE_CHANGED_SIGNAL] = g_signal_new("value-changed",
-                                                           G_TYPE_FROM_CLASS(klass),
-                                                           G_SIGNAL_RUN_FIRST,
-                                                           G_STRUCT_OFFSET(CustomSliderClass, value_changed),
-                                                           NULL, NULL,
-                                                           g_cclosure_marshal_VOID__VOID,
-                                                           G_TYPE_NONE, 0);
+    custom_slider_signals[VALUE_CHANGED_SIGNAL] = g_signal_new(
+        "value-changed",
+        G_TYPE_FROM_CLASS(klass),
+        G_SIGNAL_RUN_FIRST,
+        G_STRUCT_OFFSET(CustomSliderClass, value_changed),
+        NULL, NULL,
+        g_cclosure_marshal_VOID__VOID,
+        G_TYPE_NONE, 0);
 }
 
 
 
-static void custom_slider_init(CustomSlider *slider) {
+static void custom_slider_init(CustomSlider *slider, gpointer class_data __attribute__((unused)))
+{
     slider->value = 0.0;
     slider->min_value = 0.0;
     slider->max_value = 100.0;
@@ -1261,7 +1264,6 @@ static RRCrtc find_available_crtc(Display *dpy, XRRScreenResources *resources, R
 static void update_window_sizes(AnimationData *anim_data) {
     GdkRectangle workarea;
     int window_height;
-    //int screen_num = 0;
     Display *dpy = GDK_DISPLAY();
     int n_monitors = 0;
     XineramaScreenInfo *monitors = NULL;
@@ -1269,13 +1271,11 @@ static void update_window_sizes(AnimationData *anim_data) {
         if (XineramaIsActive(dpy)) {
             monitors = XineramaQueryScreens(dpy, &n_monitors);
             if (monitors && n_monitors > 1) {
-                //screen_num = 1;
                 workarea.x = monitors[1].x_org;
                 workarea.y = monitors[1].y_org;
                 workarea.width = monitors[1].width;
                 workarea.height = monitors[1].height;
             } else {
-                //screen_num = 0;
                 workarea.x = 0;
                 workarea.y = 0;
                 workarea.width = gdk_screen_width();
@@ -1283,14 +1283,12 @@ static void update_window_sizes(AnimationData *anim_data) {
             }
             if (monitors) XFree(monitors);
         } else {
-            //screen_num = 0;
             workarea.x = 0;
             workarea.y = 0;
             workarea.width = gdk_screen_width();
             workarea.height = gdk_screen_height();
         }
     } else {
-        //screen_num = 0;
         workarea.x = 0;
         workarea.y = 0;
         workarea.width = gdk_screen_width();
@@ -1750,17 +1748,27 @@ int is_night_light_on() {
 
 
 
+
+
 void execute_command(const char *cmd) {
-    if (cmd && cmd[0] != '\0') {
-        pid_t pid = fork();
-        if (pid == 0) {
-            system(cmd);
-            exit(0);
-        }
+    if (!cmd || cmd[0] == '\0') {
+        return;
+    }
+    GError *error = NULL;
+    gchar *argv[] = { "/bin/sh", "-c", (char *)cmd, NULL };
+    gboolean success = g_spawn_async(NULL,
+                                    argv,
+                                    NULL,
+                                    G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD,
+                                    NULL,
+                                    NULL,
+                                    NULL,
+                                    &error);
+    if (!success) {
+        g_warning("Failed to execute command '%s': %s", cmd, error->message);
+        g_error_free(error);
     }
 }
-
-
 
 
 int execute_command_get_result(const char *cmd) {
@@ -1772,15 +1780,16 @@ int execute_command_get_result(const char *cmd) {
             return 0;
         }
         char output[10];
-        if (fgets(output, sizeof(output) - 1, fp) != NULL) {
+        if (fgets(output, sizeof(output), fp) != NULL) {
+            output[sizeof(output) - 1] = '\0';
+            int result = atoi(output);
             pclose(fp);
-            return atoi(output);
+            return result;
         }
         pclose(fp);
     }
     return 0;
 }
-
 
 
 
@@ -2488,7 +2497,7 @@ else if (strcmp(key, "option_tint") == 0) {
         if (value[0] == '/') {
             strncpy(button_configs[button_idx].icon_path, value, MAX_LINE_LENGTH - 1);
         } else {
-            snprintf(button_configs[button_idx].icon_path, MAX_LINE_LENGTH, "%s%s", ICON_PATH, value);
+            snprintf(button_configs[button_idx].icon_path, 228, "%s%s", ICON_PATH, value);
         }
     } else if (strcmp(property, "cmd") == 0) {
         strncpy(button_configs[button_idx].cmd, value, MAX_LINE_LENGTH - 1);
@@ -2548,6 +2557,7 @@ gboolean recreate_original_buttons(gpointer user_data __attribute__((unused))) {
         iter = iter->next;
     }
     g_list_free(children);
+    delete_notifications_button = NULL;
     GtkWidget *header_box = gtk_vbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(box), header_box, FALSE, FALSE, 10);
     GtkWidget *label = gtk_label_new(panel_title);
@@ -2749,8 +2759,9 @@ void show_confirmation_dialog(ButtonConfig *config, GtkWidget *parent_widget) {
 
 
 static void on_button_clicked(GtkWidget *widget, gpointer user_data) {
+   if (!widget || !GTK_IS_WIDGET(widget) || !user_data) return;
     ButtonConfig *config = (ButtonConfig *)user_data;
-    if (!config) return;
+    if (config->name[0] == '\0' || config->type[0] == '\0') return;
     (GtkWidget *)g_object_get_data(G_OBJECT(widget), "label");
     gboolean is_hover = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(widget), "is_hover"));
     if (strcmp(config->type, "toggle") == 0 && config->is_preprogrammed) {
@@ -2818,6 +2829,7 @@ static void on_button_clicked(GtkWidget *widget, gpointer user_data) {
         }
     }
     if (config->is_preprogrammed && strcmp(config->name, "Project") == 0) {
+        if (!anim_data) return;
         if (!anim_data->is_animating) {
             if (render_options.anim_type == ANIM_TYPE_NONE) {
                 anim_data->current_x = anim_data->start_x;
@@ -2842,8 +2854,10 @@ static void on_button_clicked(GtkWidget *widget, gpointer user_data) {
                 anim_data->target_x = anim_data->start_x;
                 anim_data->is_animating = TRUE;
                 anim_data->is_opening = FALSE;
-                g_timeout_add(8, animate_window, anim_data);
-                g_timeout_add(250, (GSourceFunc)show_project_buttons_with_animation, NULL);
+              if (anim_data) {
+                    g_timeout_add(8, animate_window, anim_data);
+                    g_timeout_add(250, (GSourceFunc)show_project_buttons_with_animation, NULL);
+                }
             }
         }
         return;
@@ -2869,8 +2883,10 @@ static void on_button_clicked(GtkWidget *widget, gpointer user_data) {
             } 
             anim_data->is_animating = TRUE;
             anim_data->is_opening = FALSE;
-            g_timeout_add(8, animate_window, anim_data);
-            g_timeout_add(200, (GSourceFunc)recreate_original_buttons, NULL);
+            if (anim_data) {
+                g_timeout_add(8, animate_window, anim_data);
+                g_timeout_add(200, (GSourceFunc)recreate_original_buttons, NULL);
+            }
         }
         return;
     }
@@ -2899,7 +2915,9 @@ static void on_button_clicked(GtkWidget *widget, gpointer user_data) {
             } 
             anim_data->is_animating = TRUE;
             anim_data->is_opening = FALSE;
-            g_timeout_add(8, animate_window, anim_data);
+            if (anim_data) {
+                g_timeout_add(8, animate_window, anim_data);
+            }
         }
     }
 }
@@ -3494,7 +3512,7 @@ pango_font_description_free(bold_desc);
         gtk_box_pack_start(GTK_BOX(c), l, TRUE, TRUE, 0);
         gtk_box_pack_start(GTK_BOX(notif_box), c, FALSE, FALSE, NOTIF_BOX_SPACING);
     }
-    if (GTK_IS_WIDGET(delete_notifications_button)) {
+if (delete_notifications_button && GTK_IS_WIDGET(delete_notifications_button)) {
         if (n >= 2)
             gtk_widget_show(delete_notifications_button);
         else
