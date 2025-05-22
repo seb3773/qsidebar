@@ -41,7 +41,7 @@
 #define QUICKSETTINGS_BUTTON_MARGIN    5
 #define QUICKSETTINGS_BUTTONS_PER_ROW  4
 #define NOTIF_BOX_SPACING 5
-#define NOTIF_LABEL_WIDTH 16
+#define NOTIF_LABEL_WIDTH 24
 
 #define DEFAULT_CONFIG_CONTENT \
 "[General settings]\n" \
@@ -465,8 +465,15 @@ gchar* build_css(const gchar *base_css) {
             db = (int)(tint_popup_b * 0.96);
         }
     }
-    if (dr > 255) dr = 255; if (dg > 255) dg = 255; if (db > 255) db = 255;
-    if (dr < 0) dr = 0; if (dg < 0) dg = 0; if (db < 0) db = 0;
+   // if (dr > 255) dr = 255; if (dg > 255) dg = 255; if (db > 255) db = 255;
+   // if (dr < 0) dr = 0; if (dg < 0) dg = 0; if (db < 0) db = 0;
+   // if (dr > 255) dr = 255;
+if (dr > 255) { dr = 255; }
+if (dg > 255) { dg = 255; }
+if (db > 255) { db = 255; }
+if (dr < 0) { dr = 0; }
+if (dg < 0) { dg = 0; }
+if (db < 0) { db = 0; }
     snprintf(color2, sizeof(color2), "#%02X%02X%02X", dr, dg, db);
     GString *out = g_string_new(NULL);
     const char *p = base_css;
@@ -1255,17 +1262,25 @@ void apply_settings(const Gamma *gamma, const float *brightness, char outputs[MA
                 XRRCrtcGamma *ng = XRRAllocGamma(sz);
                 if (!ng) { XRRFreeGamma(cg); XRRFreeOutputInfo(oi); continue; }
                 float ar = ab * ag.r, agv = ab * ag.g, abv = ab * ag.b;
+                //clamping logic (as a safety measure to clamp the values in case of potential overflow ) and disable compiler warnings
+                #pragma GCC diagnostic push
+                #pragma GCC diagnostic ignored "-Wtype-limits"
                 unsigned int ar65535 = (unsigned int)(ar * 65535.0f + 0.5f);
                 unsigned int agv65535 = (unsigned int)(agv * 65535.0f + 0.5f);
                 unsigned int abv65535 = (unsigned int)(abv * 65535.0f + 0.5f);
+                #pragma GCC diagnostic pop
                     for (int l = 0; l < sz; ++l) {
                     unsigned int val = (unsigned int)l * 65535 / (sz - 1);
                     ng->red[l]   = ar65535 * val / 65535;
                     ng->green[l] = agv65535 * val / 65535;
                     ng->blue[l]  = abv65535 * val / 65535;
+                    //clamping logic (as a safety measure to clamp the values in case of potential overflow ) and disable compiler warnings
+                    #pragma GCC diagnostic push
+                    #pragma GCC diagnostic ignored "-Wtype-limits"
                     if (ng->red[l] > 65535) ng->red[l] = 65535;
                     if (ng->green[l] > 65535) ng->green[l] = 65535;
                     if (ng->blue[l] > 65535) ng->blue[l] = 65535;
+                    #pragma GCC diagnostic pop
                }
                 XRRSetCrtcGamma(dpy, oi->crtc, ng);
                 XRRFreeGamma(ng);
@@ -2052,7 +2067,7 @@ else
         if (value[0] == '/') {
             strncpy(button_configs[button_idx].icon_path, value, MAX_LINE_LENGTH - 1);
         } else {
-            snprintf(button_configs[button_idx].icon_path, MAX_LINE_LENGTH, "%s%s", ICON_PATH, value);
+            snprintf(button_configs[button_idx].icon_path, 228, "%s%s", ICON_PATH, value);
         }
     } else if (strcmp(property, "cmd") == 0) {
         strncpy(button_configs[button_idx].cmd, value, MAX_LINE_LENGTH - 1);
@@ -2110,13 +2125,19 @@ gboolean recreate_original_buttons(gpointer user_data);
 static GtkWidget* create_quick_settings_panel(int width, int height);
 
 
-gboolean recreate_original_buttons(gpointer user_data) {
+
+gboolean recreate_original_buttons(gpointer user_data __attribute__((unused))) {
+    if (anim_data->is_animating) {
+        g_timeout_add(200, recreate_original_buttons, NULL);
+        return FALSE;
+    }
     GtkWidget *window = anim_data->window;
     GtkWidget *box = gtk_bin_get_child(GTK_BIN(window));
     GList *children = gtk_container_get_children(GTK_CONTAINER(box));
     GList *iter = children;
     while (iter != NULL) {
         GtkWidget *child = GTK_WIDGET(iter->data);
+        g_signal_handlers_disconnect_by_data(child, NULL);
         gtk_widget_destroy(child);
         iter = iter->next;
     }
@@ -2124,10 +2145,10 @@ gboolean recreate_original_buttons(gpointer user_data) {
     GtkWidget *header_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     gtk_box_pack_start(GTK_BOX(box), header_box, FALSE, FALSE, 10);
     GtkWidget *label = gtk_label_new(panel_title);
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     gtk_widget_override_font(label, paneltitlefont_desc);
-    #pragma GCC diagnostic pop
+#pragma GCC diagnostic pop
     gtk_style_context_add_class(gtk_widget_get_style_context(label), "actions-center-label");
     gtk_box_pack_start(GTK_BOX(header_box), label, FALSE, FALSE, 0);
     add_notification_to_panel(box, anim_data->width, anim_data->height);
@@ -2140,7 +2161,7 @@ gboolean recreate_original_buttons(gpointer user_data) {
         if (dbus_notif_store.count >= 2) {
             gtk_widget_show(delete_notifications_button);
         } else {
-           gtk_widget_hide(delete_notifications_button);
+            gtk_widget_hide(delete_notifications_button);
         }
     }
     if (anim_data->update_pending) {
@@ -2157,8 +2178,8 @@ gboolean recreate_original_buttons(gpointer user_data) {
 
 
 
-void show_project_buttons(GtkWidget *parent_button);
-void show_project_buttons(GtkWidget *parent_button) {
+void show_project_buttons(GtkWidget *parent_button __attribute__((unused)));
+void show_project_buttons(GtkWidget *parent_button __attribute__((unused))) {
     GtkWidget *window = anim_data->window;
     GtkWidget *box = gtk_bin_get_child(GTK_BIN(window));
     GList *children = gtk_container_get_children(GTK_CONTAINER(box));
@@ -2222,7 +2243,7 @@ anim_data->is_project_panel = TRUE;
 
 
 
-gboolean show_project_buttons_with_animation(gpointer user_data) {
+gboolean show_project_buttons_with_animation(gpointer user_data __attribute__((unused))) {
     int target_x = anim_data->start_x - anim_data->width;
     show_project_buttons(NULL);
     if (render_options.anim_type == ANIM_TYPE_NONE) {
@@ -2581,23 +2602,28 @@ static GtkWidget* create_button_with_icon_and_label(ButtonConfig *config, int bu
                 int icon_height = (icon_width * original_height) / original_width;
                 GdkPixbuf *scaled_pixbuf = gdk_pixbuf_scale_simple(
                     original_pixbuf, icon_width, icon_height, GDK_INTERP_BILINEAR);
-   GdkPixbuf *display_pixbuf = scaled_pixbuf;
-   if (sidebar_flags & FLAG_DARKMODE) {
-    GdkPixbuf *inverted_pixbuf = invert_pixbuf_colors(scaled_pixbuf);
-    if (inverted_pixbuf) {
-        display_pixbuf = inverted_pixbuf;
-        g_object_unref(scaled_pixbuf);
-     }
-  }
-            GtkWidget *image = gtk_image_new_from_pixbuf(display_pixbuf);
-             gtk_widget_set_halign(image, GTK_ALIGN_START);
-             gtk_widget_set_margin_end(image, 15);
-             gtk_widget_set_margin_start(image, 15);
-             gtk_box_pack_start(GTK_BOX(box), image, FALSE, FALSE, 0);
-             g_object_unref(display_pixbuf);
-             g_object_unref(original_pixbuf);
-           }
-       }
+                GdkPixbuf *display_pixbuf = scaled_pixbuf;
+                GdkPixbuf *inverted_pixbuf = NULL;
+                if (sidebar_flags & FLAG_DARKMODE) {
+                    inverted_pixbuf = invert_pixbuf_colors(scaled_pixbuf);
+                    if (inverted_pixbuf) {
+                        display_pixbuf = inverted_pixbuf;
+                        g_object_unref(scaled_pixbuf);
+                        scaled_pixbuf = NULL;
+                    }
+                }
+                GtkWidget *image = gtk_image_new_from_pixbuf(display_pixbuf);
+                gtk_widget_set_halign(image, GTK_ALIGN_START);
+                gtk_widget_set_margin_end(image, 15);
+                gtk_widget_set_margin_start(image, 15);
+                gtk_box_pack_start(GTK_BOX(box), image, FALSE, FALSE, 0);
+                if (display_pixbuf != scaled_pixbuf && display_pixbuf != NULL)
+                    g_object_unref(display_pixbuf);
+                if (scaled_pixbuf != NULL)
+                    g_object_unref(scaled_pixbuf);
+                g_object_unref(original_pixbuf);
+            }
+        }
         GtkWidget *label = gtk_label_new(config->name);
         #pragma GCC diagnostic push
         #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -2609,8 +2635,9 @@ static GtkWidget* create_button_with_icon_and_label(ButtonConfig *config, int bu
         snprintf(markup, sizeof(markup), "<span size='larger'>%s</span>", config->name);
         gtk_label_set_markup(GTK_LABEL(label), markup);
         gtk_box_pack_start(GTK_BOX(box), label, TRUE, TRUE, 0);
-     } else {
+    } else {
         GdkPixbuf *original_pixbuf = NULL;
+        GdkPixbuf *scaled_pixbuf = NULL;
         GdkPixbuf *normal_pixbuf = NULL;
         GdkPixbuf *inverted_pixbuf = NULL;
         if (config->icon_path[0] != '\0') {
@@ -2623,24 +2650,23 @@ static GtkWidget* create_button_with_icon_and_label(ButtonConfig *config, int bu
                 int original_width = gdk_pixbuf_get_width(original_pixbuf);
                 int original_height = gdk_pixbuf_get_height(original_pixbuf);
                 int icon_height = (icon_width * original_height) / original_width;
-                GdkPixbuf *scaled_pixbuf = gdk_pixbuf_scale_simple(
+                scaled_pixbuf = gdk_pixbuf_scale_simple(
                     original_pixbuf, icon_width, icon_height, GDK_INTERP_BILINEAR);
                 if (config->icon_only) {
                     gtk_widget_set_tooltip_text(button, config->name);
                     GdkPixbuf *display_pixbuf = scaled_pixbuf;
-       if (sidebar_flags & FLAG_DARKMODE) {
-          inverted_pixbuf = invert_pixbuf_colors(scaled_pixbuf);
-              if (inverted_pixbuf) {
-                   display_pixbuf = inverted_pixbuf;
-              }
-       }
-                GtkWidget *image = gtk_image_new_from_pixbuf(display_pixbuf);
-                 gtk_widget_set_halign(image, GTK_ALIGN_CENTER);
-                 gtk_widget_set_valign(image, GTK_ALIGN_CENTER);
-                 gtk_box_pack_start(GTK_BOX(box), image, TRUE, TRUE, 0);
-                   if (inverted_pixbuf && inverted_pixbuf != display_pixbuf) {
-                     g_object_unref(inverted_pixbuf);
+                    if (sidebar_flags & FLAG_DARKMODE) {
+                        inverted_pixbuf = invert_pixbuf_colors(scaled_pixbuf);
+                        if (inverted_pixbuf) {
+                            display_pixbuf = inverted_pixbuf;
+                        }
                     }
+                    GtkWidget *image = gtk_image_new_from_pixbuf(display_pixbuf);
+                    gtk_widget_set_halign(image, GTK_ALIGN_CENTER);
+                    gtk_widget_set_valign(image, GTK_ALIGN_CENTER);
+                    gtk_box_pack_start(GTK_BOX(box), image, TRUE, TRUE, 0);
+                    if (display_pixbuf != scaled_pixbuf && display_pixbuf != NULL)
+                        g_object_unref(display_pixbuf);
                 } else {
                     if (strcmp(config->type, "toggle") == 0) {
                         if (sidebar_flags & FLAG_DARKMODE) {
@@ -2674,12 +2700,13 @@ static GtkWidget* create_button_with_icon_and_label(ButtonConfig *config, int bu
                         gtk_widget_set_valign(image, GTK_ALIGN_START);
                         g_object_set_data(G_OBJECT(button), "icon-image", image);
                         gtk_box_pack_start(GTK_BOX(box), image, FALSE, FALSE, 0);
-                        if (inverted_pixbuf && inverted_pixbuf != display_pixbuf) {
-                            g_object_unref(inverted_pixbuf);
-                        }
+
+                        if (display_pixbuf != scaled_pixbuf && display_pixbuf != NULL)
+                            g_object_unref(display_pixbuf);
                     }
                     char button_text[MAX_LINE_LENGTH];
                     strncpy(button_text, config->name, MAX_LINE_LENGTH - 1);
+                    button_text[MAX_LINE_LENGTH - 1] = '\0';
                     char *space_pos = strchr(button_text, ' ');
                     if (space_pos != NULL) {
                         *space_pos = '\0';
@@ -2709,10 +2736,14 @@ static GtkWidget* create_button_with_icon_and_label(ButtonConfig *config, int bu
                         gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 0);
                     }
                 }
-                g_object_unref(scaled_pixbuf);
-                g_object_unref(original_pixbuf);
-                if (normal_pixbuf) g_object_unref(normal_pixbuf);
-                if (inverted_pixbuf) g_object_unref(inverted_pixbuf);
+                if (scaled_pixbuf)
+                    g_object_unref(scaled_pixbuf);
+                if (original_pixbuf)
+                    g_object_unref(original_pixbuf);
+                if (normal_pixbuf)
+                    g_object_unref(normal_pixbuf);
+                if (inverted_pixbuf)
+                    g_object_unref(inverted_pixbuf);
             }
         }
         gtk_style_context_add_class(gtk_widget_get_style_context(button), "original-button");
@@ -2720,6 +2751,7 @@ static GtkWidget* create_button_with_icon_and_label(ButtonConfig *config, int bu
     gtk_widget_set_size_request(button, button_width, button_height);
     return button;
 }
+
 
 
 
@@ -2995,7 +3027,7 @@ static GtkWidget* create_notification_button(const Notification *notif, int pane
 
 
 
-static void on_delete_notifications_clicked(GtkWidget *widget, gpointer user_data) {
+static void on_delete_notifications_clicked(GtkWidget *widget __attribute__((unused)), gpointer user_data __attribute__((unused))) {
     dbus_notif_store.count = 0;
     new_notifs = 0;
     memset(dbus_notif_store.notifications, 0, sizeof(dbus_notif_store.notifications));
@@ -3119,7 +3151,7 @@ void update_toggle_button_states() {
 
 
 
-static GtkWidget* create_quick_settings_panel(int width, int height) {
+static GtkWidget* create_quick_settings_panel(int width, int height __attribute__((unused))) {
     GtkWidget *quick_settings = gtk_box_new(GTK_ORIENTATION_VERTICAL, QUICKSETTINGS_BUTTON_MARGIN);
     int usable_width = width - 2 * QUICKSETTINGS_MARGIN;
     int button_width = (usable_width - 3 * QUICKSETTINGS_BUTTON_MARGIN) / QUICKSETTINGS_BUTTONS_PER_ROW;
@@ -3219,7 +3251,7 @@ static GtkWidget* create_quick_settings_panel(int width, int height) {
 
 
 
-void* play_sound_thread_func(void* arg) {
+void* play_sound_thread_func(void*) {
     ca_context* c = ca_gtk_context_get();
     if (notification_sound != NULL && strcmp(notification_sound, "system") == 0) {
         ca_context_play(c, 0,
@@ -3232,6 +3264,7 @@ void* play_sound_thread_func(void* arg) {
     }
     return NULL;
 }
+
 
 
 
@@ -3477,7 +3510,7 @@ if (status_icon && !(sidebar_flags & FLAG_TRINITY_APPLET)) {
 
 
 
-static void on_status_icon_activate(GtkStatusIcon *icon, gpointer user_data) {
+static void on_status_icon_activate(GtkStatusIcon *icon __attribute__((unused)), gpointer user_data __attribute__((unused))) {
     handle_signal(SIGUSR1);
 }
 
@@ -3671,7 +3704,7 @@ gtk_widget_set_opacity(notification_popup, popup_opacity);
 
 
 
-static gboolean on_click_outside(GtkWidget *widget, GdkEventButton *event, gpointer user_data) {
+static gboolean on_click_outside(GtkWidget *widget __attribute__((unused)), GdkEventButton *event __attribute__((unused)), gpointer user_data __attribute__((unused))) {
     if (anim_data != NULL && anim_data->is_opening && !anim_data->is_animating) {
         if (render_options.anim_type == ANIM_TYPE_SLIDE) {
             anim_data->target_x = anim_data->start_x;
@@ -3781,17 +3814,21 @@ static GtkWidget* create_tray_menu(void) {
 
 
 
-static void on_status_icon_popup_menu(GtkStatusIcon *status_icon, guint button, guint activate_time, gpointer user_data) {
+static void on_status_icon_popup_menu(GtkStatusIcon *status_icon __attribute__((unused)), guint button __attribute__((unused)), guint activate_time __attribute__((unused)), gpointer user_data __attribute__((unused))) {
 handle_signal(SIGUSR2); 
     GtkWidget *menu = create_tray_menu();
     gtk_menu_popup_at_pointer(GTK_MENU(menu), NULL);
 }
 
 
+
+
+
 static void update_systray_icon(void) {
 if (!(sidebar_flags & FLAG_USE_SYSTRAY) && !(sidebar_flags & FLAG_TRINITY_APPLET)) {
         return;
     }
+char icon_path_buffer[256];
     const char *icon_path;
 if (sidebar_flags & FLAG_FOCUS_ASSIST) {
         icon_path = (new_notifs > 0) ? tray_icon_focus_filled : tray_icon_focus_normal;
@@ -3802,7 +3839,6 @@ if (sidebar_flags & FLAG_FOCUS_ASSIST) {
         if (notif_count == 0) {
             icon_path = tray_icon_normal;
         } else {
-            char icon_path_buffer[256];
             if (notif_count >= 1 && notif_count <= 9) {
                 snprintf(icon_path_buffer, sizeof(icon_path_buffer), "%s%d.png", tray_prefix, notif_count);
             } else {
@@ -3839,23 +3875,14 @@ if (sidebar_flags & FLAG_FOCUS_ASSIST) {
                 g_object_unref(cropped_pixbuf);
             }
         }
-if (sidebar_flags & FLAG_TRINITY_APPLET) {
-    if ((sidebar_flags & FLAG_DARKMODE) && !(sidebar_flags & FLAG_TRAYCOLORMODE)) {
-        set_sidebar_icon(
-            icon_path,
-            TRUE,
-            (sidebar_flags & FLAG_FOCUS_ASSIST) != 0,
-            (sidebar_flags & FLAG_NOTIF_HIDE_ICON) != 0,
-            !(sidebar_flags & FLAG_NOTIF_NUMBER_INDICATOR));
-    } else {
-          set_sidebar_icon(
-            icon_path,
-            FALSE,
-            (sidebar_flags & FLAG_FOCUS_ASSIST) != 0,
-            (sidebar_flags & FLAG_NOTIF_HIDE_ICON) != 0,
-            !(sidebar_flags & FLAG_NOTIF_NUMBER_INDICATOR));
-    }
-}
+        if (sidebar_flags & FLAG_TRINITY_APPLET) {
+            set_sidebar_icon(
+                icon_path,
+                (sidebar_flags & FLAG_DARKMODE) && !(sidebar_flags & FLAG_TRAYCOLORMODE),
+                (sidebar_flags & FLAG_FOCUS_ASSIST) != 0,
+                (sidebar_flags & FLAG_NOTIF_HIDE_ICON) != 0,
+                !(sidebar_flags & FLAG_NOTIF_NUMBER_INDICATOR));
+        }
     } else {
         g_print("System tray icon file not found: %s\n", icon_path);
     }
@@ -3863,19 +3890,20 @@ if (sidebar_flags & FLAG_TRINITY_APPLET) {
 
 
 
-static void on_menu_open_sidebar(GtkMenuItem *item, gpointer user_data) {
+static void on_menu_open_sidebar(GtkMenuItem *item __attribute__((unused)), gpointer user_data __attribute__((unused))) {
     handle_signal(SIGUSR1); 
 }
 
-static void on_menu_focus_assist(GtkMenuItem *item, gpointer user_data) {
+static void on_menu_focus_assist(GtkMenuItem *item __attribute__((unused)), gpointer user_data __attribute__((unused))) {
  sidebar_flags ^= FLAG_FOCUS_ASSIST;
+update_systray_icon();
 }
 
-static void on_menu_no_icons(GtkMenuItem *item, gpointer user_data) {
+static void on_menu_no_icons(GtkMenuItem *item __attribute__((unused)), gpointer user_data __attribute__((unused))) {
     sidebar_flags ^= FLAG_NOTIF_HIDE_ICON;
 }
 
-static void on_menu_no_notif(GtkMenuItem *item, gpointer user_data) {
+static void on_menu_no_notif(GtkMenuItem *item __attribute__((unused)), gpointer user_data __attribute__((unused))) {
 sidebar_flags ^= FLAG_NOTIF_NUMBER_INDICATOR;
 update_systray_icon();
 }
@@ -4382,7 +4410,7 @@ if (sidebar_flags & FLAG_JUST_CHANGED_CONFIG) {
 
 
 
-static void on_screen_size_changed(GdkScreen *screen, gpointer user_data) {
+static void on_screen_size_changed(GdkScreen *screen __attribute__((unused)), gpointer user_data) {
     static gboolean timeout_pending = FALSE;
     (void)user_data;
     if (timeout_pending) {
@@ -4550,7 +4578,7 @@ static void reply_get_server_info(DBusMessage *msg, DBusConnection *conn) {
 
 
 
-static gboolean trigger_dbus_notification(gpointer user_data) {
+static gboolean trigger_dbus_notification(gpointer user_data __attribute__((unused))) {
     handle_dbus_notification();
     return G_SOURCE_REMOVE;
 }
@@ -4728,7 +4756,7 @@ static void *dbus_thread_func(void *user_data) {
 
 
 
-static DBusHandlerResult dbus_message_filter(DBusConnection *conn, DBusMessage *msg, void *user_data) {
+static DBusHandlerResult dbus_message_filter(DBusConnection *conn, DBusMessage *msg, void *user_data __attribute__((unused))) {
     if (dbus_message_is_method_call(msg, "org.freedesktop.Notifications", "GetServerInformation")) {
         reply_get_server_info(msg, conn);
         return DBUS_HANDLER_RESULT_HANDLED;
@@ -5111,7 +5139,7 @@ gboolean animate_window(gpointer ud) {
 
 
 
-gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer user_data) {
+gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer user_data __attribute__((unused))) {
     GtkAllocation a;
     gtk_widget_get_allocation(widget, &a);
     if (widget == window) {
