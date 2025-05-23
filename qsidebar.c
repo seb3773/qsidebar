@@ -167,6 +167,7 @@ enum SidebarFlags {
     FLAG_BT_TESTDONE = 1 << 21
 };
 
+void cleanup_resources(void);
 static int bottom_margin;
 float intensity = 0.8;
 static cairo_surface_t *background_source = NULL;
@@ -1597,7 +1598,7 @@ void load_config() {
         int button_num;
         char property[MAX_LINE_LENGTH];
         int filter_num;
-if (strcmp(key, "opyion_notifs_popup_position") == 0) {
+if (strcmp(key, "option_notifs_popup_position") == 0) {
             if (strcmp(value, "default") == 0) {
                 notif_pos = 0;
             } else if (strcmp(value, "topright") == 0) {
@@ -3367,6 +3368,9 @@ static gboolean show_notification_popup_wrapper(gpointer user_data) {
 
 
 
+
+
+
 void handle_signal(int signum) {
     if (anim_data == NULL) return;
     if (signum == SIGHUP) {
@@ -4641,7 +4645,6 @@ typedef struct {
 
 
 
-
 static void reply_get_server_info(DBusMessage *msg, DBusConnection *conn) {
     DBusMessage *reply = dbus_message_new_method_return(msg);
     DBusMessageIter args;
@@ -4848,6 +4851,7 @@ static DBusHandlerResult dbus_message_filter(DBusConnection *conn, DBusMessage *
     }
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
+
 
 
 
@@ -5263,6 +5267,14 @@ gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer user_data __attribute_
     }
     return FALSE;
 }
+
+
+
+
+
+
+
+
 
 
 

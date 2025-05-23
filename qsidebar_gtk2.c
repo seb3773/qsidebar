@@ -2013,7 +2013,7 @@ void load_config() {
         int button_num;
         char property[MAX_LINE_LENGTH];
         int filter_num;
-if (strcmp(key, "opyion_notifs_popup_position") == 0) {
+if (strcmp(key, "option_notifs_popup_position") == 0) {
             if (strcmp(value, "default") == 0) {
                 notif_pos = 0;
             } else if (strcmp(value, "topright") == 0) {
