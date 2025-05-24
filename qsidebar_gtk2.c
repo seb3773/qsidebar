@@ -792,40 +792,34 @@ void update_toggle_button_appearance(GtkWidget *button, gboolean is_active, gboo
                 if (sidebar_flags & FLAG_DARKMODE) {
                     gdk_color_parse(GLOBAL_BG_COLOR_DARK, &bg_color);
                     gdk_color_parse(LABELS_FG_COLOR_DARK, &fg_color);
-                    } else {
+                } else {
                     gdk_color_parse(GLOBAL_BG_COLOR, &bg_color);
                     gdk_color_parse(LABELS_FG_COLOR, &fg_color);
-                    }
+                }
             } else if (is_hover && !is_active) {
                 if (sidebar_flags & FLAG_DARKMODE) {
                     gdk_color_parse(GLOBAL_BG_COLOR_DARK_INACTIVE, &bg_color);
                     gdk_color_parse(LABELS_FG_COLOR_DARK, &fg_color);
-                    }
-                else
-                {
+                } else {
                     gdk_color_parse(GLOBAL_BG_COLOR_INACTIVE, &bg_color);
                     gdk_color_parse(LABELS_FG_COLOR, &fg_color);
-                    }
+                }
             } else if (!is_hover && is_active) {
                 if (sidebar_flags & FLAG_DARKMODE) {
                     gdk_color_parse(GLOBAL_BG_COLOR_DARK_INACTIVE, &bg_color);
                     gdk_color_parse(LABELS_FG_COLOR_DARK, &fg_color);
-                    }
-                else
-                {
+                } else {
                     gdk_color_parse(GLOBAL_BG_COLOR_HOVER, &bg_color);
                     gdk_color_parse(LABELS_FG_COLOR, &fg_color);
-                    }
+                }
             } else {
                 if (sidebar_flags & FLAG_DARKMODE) {
                     gdk_color_parse(GLOBAL_BG_COLOR_DARK_INACTIVE, &bg_color);
                     gdk_color_parse(LABELS_FG_COLOR_DARK, &fg_color);
-                    }
-                else
-                {
+                } else {
                     gdk_color_parse(GLOBAL_BG_COLOR_DARK_HOVER, &bg_color);
                     gdk_color_parse(LABELS_FG_COLOR, &fg_color);
-                    }
+                }
             }
             gtk_widget_modify_bg(button, GTK_STATE_NORMAL, &bg_color);
             gtk_widget_modify_bg(button, GTK_STATE_PRELIGHT, &bg_color);
@@ -844,7 +838,7 @@ void update_toggle_button_appearance(GtkWidget *button, gboolean is_active, gboo
             }
         } else {
             gtk_event_box_set_visible_window(GTK_EVENT_BOX(button), FALSE);
-if (label) {
+            if (label) {
                 if (sidebar_flags & FLAG_DARKMODE)
                     gdk_color_parse(LABELS_FG_COLOR_DARK, &fg_color);
                 else
@@ -907,11 +901,21 @@ if (label) {
     gtk_widget_modify_bg(button, GTK_STATE_NORMAL, &bg_color);
     gtk_widget_modify_bg(button, GTK_STATE_PRELIGHT, &bg_color);
     if (label) {
-        gtk_widget_modify_fg(label, GTK_STATE_NORMAL, &fg_color);
-        gtk_widget_modify_fg(label, GTK_STATE_PRELIGHT, &fg_color);
+        if (GTK_IS_BOX(label)) {
+            GList *children = gtk_container_get_children(GTK_CONTAINER(label));
+            for (GList *iter = children; iter != NULL; iter = iter->next) {
+                if (GTK_IS_LABEL(iter->data)) {
+                    gtk_widget_modify_fg(GTK_WIDGET(iter->data), GTK_STATE_NORMAL, &fg_color);
+                    gtk_widget_modify_fg(GTK_WIDGET(iter->data), GTK_STATE_PRELIGHT, &fg_color);
+                }
+            }
+            g_list_free(children);
+        } else {
+            gtk_widget_modify_fg(label, GTK_STATE_NORMAL, &fg_color);
+            gtk_widget_modify_fg(label, GTK_STATE_PRELIGHT, &fg_color);
+        }
     }
 }
-
 
 
 
@@ -3011,9 +3015,9 @@ static GtkWidget* create_button_with_icon_and_label(ButtonConfig *config, int bu
          strcmp(config->name, "Duplicate") == 0 ||
          strcmp(config->name, "Extend") == 0 ||
          strcmp(config->name, "Second screen only") == 0);
-if (is_project_button) {
-    gtk_event_box_set_visible_window(GTK_EVENT_BOX(event_box), FALSE);
-}
+    if (is_project_button) {
+        gtk_event_box_set_visible_window(GTK_EVENT_BOX(event_box), FALSE);
+    }
     GtkWidget *box = is_project_button
         ? gtk_hbox_new(FALSE, 0)
         : gtk_vbox_new(FALSE, 5);
@@ -3047,42 +3051,43 @@ if (is_project_button) {
     if ((config->icon_path[0] != '\0' && !is_project_button) || (is_project_button && project_icon_path)) {
         const char *icon_to_load = is_project_button ? project_icon_path : config->icon_path;
         original_pixbuf = gdk_pixbuf_new_from_file(icon_to_load, NULL);
-            int icon_width = button_width / 4;
-            int original_width = gdk_pixbuf_get_width(original_pixbuf);
-            int original_height = gdk_pixbuf_get_height(original_pixbuf);
-            int icon_height = (icon_width * original_height) / original_width;
-            GdkPixbuf *scaled_pixbuf = gdk_pixbuf_scale_simple(
-                original_pixbuf, icon_width, icon_height, GDK_INTERP_BILINEAR);
-            GdkPixbuf *pixbuf_to_use = NULL;
-            if (strcmp(config->type, "toggle") == 0) {
-                if (sidebar_flags & FLAG_DARKMODE)
-                    pixbuf_to_use = config->is_active ? g_object_ref(scaled_pixbuf) : invert_pixbuf_colors(scaled_pixbuf);
-                else
-                    pixbuf_to_use = config->is_active ? invert_pixbuf_colors(scaled_pixbuf) : g_object_ref(scaled_pixbuf);
-            } else {
-                if (sidebar_flags & FLAG_DARKMODE)
-                    pixbuf_to_use = invert_pixbuf_colors(scaled_pixbuf);
-                else
-                    pixbuf_to_use = g_object_ref(scaled_pixbuf);
-            }
-            image = gtk_image_new_from_pixbuf(pixbuf_to_use);
-            if (is_project_button) {
-                GtkWidget *align = gtk_alignment_new(0.5, 0.5, 0, 0);
-                gtk_container_add(GTK_CONTAINER(align), image);
-                gtk_box_pack_start(GTK_BOX(box), align, FALSE, FALSE, 12);
-            } else {
-                GtkWidget *align = gtk_alignment_new(0.0, 0.0, 0.0, 0.0);
-                gtk_container_add(GTK_CONTAINER(align), image);
-                gtk_box_pack_start(GTK_BOX(box), align, FALSE, FALSE, 0);
-            }
-            if (image)
-                g_object_set_data(G_OBJECT(event_box), "toggle_image", image);
-            if (pixbuf_to_use) g_object_unref(pixbuf_to_use);
-            if (scaled_pixbuf) g_object_unref(scaled_pixbuf);
-            if (original_pixbuf) g_object_unref(original_pixbuf);
+        int icon_width = button_width / 4;
+        int original_width = gdk_pixbuf_get_width(original_pixbuf);
+        int original_height = gdk_pixbuf_get_height(original_pixbuf);
+        int icon_height = (icon_width * original_height) / original_width;
+        GdkPixbuf *scaled_pixbuf = gdk_pixbuf_scale_simple(
+            original_pixbuf, icon_width, icon_height, GDK_INTERP_BILINEAR);
+        GdkPixbuf *pixbuf_to_use = NULL;
+        if (strcmp(config->type, "toggle") == 0) {
+            if (sidebar_flags & FLAG_DARKMODE)
+                pixbuf_to_use = config->is_active ? g_object_ref(scaled_pixbuf) : invert_pixbuf_colors(scaled_pixbuf);
+            else
+                pixbuf_to_use = config->is_active ? invert_pixbuf_colors(scaled_pixbuf) : g_object_ref(scaled_pixbuf);
+        } else {
+            if (sidebar_flags & FLAG_DARKMODE)
+                pixbuf_to_use = invert_pixbuf_colors(scaled_pixbuf);
+            else
+                pixbuf_to_use = g_object_ref(scaled_pixbuf);
+        }
+        image = gtk_image_new_from_pixbuf(pixbuf_to_use);
+        if (is_project_button) {
+            GtkWidget *align = gtk_alignment_new(0.5, 0.5, 0, 0);
+            gtk_container_add(GTK_CONTAINER(align), image);
+            gtk_box_pack_start(GTK_BOX(box), align, FALSE, FALSE, 12);
+        } else {
+            GtkWidget *align = gtk_alignment_new(0.0, 0.0, 0.0, 0.0);
+            gtk_container_add(GTK_CONTAINER(align), image);
+            gtk_box_pack_start(GTK_BOX(box), align, FALSE, FALSE, 0);
+        }
+        if (image)
+            g_object_set_data(G_OBJECT(event_box), "toggle_image", image);
+        if (pixbuf_to_use) g_object_unref(pixbuf_to_use);
+        if (scaled_pixbuf) g_object_unref(scaled_pixbuf);
+        if (original_pixbuf) g_object_unref(original_pixbuf);
     }
-    label = gtk_label_new(config->name);
+    // Modified label creation section
     if (is_project_button) {
+        label = gtk_label_new(config->name);
         PangoFontDescription *font_desc = projectbuttons_font_desc
             ? pango_font_description_copy(projectbuttons_font_desc)
             : pango_font_description_from_string("Sans 10");
@@ -3093,9 +3098,37 @@ if (is_project_button) {
         GtkWidget *align = gtk_alignment_new(0.0, 0.5, 0, 0);
         gtk_container_add(GTK_CONTAINER(align), label);
         gtk_box_pack_start(GTK_BOX(box), align, TRUE, TRUE, 0);
+        g_object_set_data(G_OBJECT(event_box), "label", label);
     } else {
-        gtk_widget_modify_font(label, quickbuttons_font_desc);
-        gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 0);
+        char button_text[MAX_LINE_LENGTH];
+        strncpy(button_text, config->name, MAX_LINE_LENGTH - 1);
+        button_text[MAX_LINE_LENGTH - 1] = '\0';
+        char *space_pos = strchr(button_text, ' ');
+        if (space_pos != NULL) {
+            *space_pos = '\0'; // Split the string at the space
+            GtkWidget *label_box = gtk_vbox_new(FALSE, 2); // Vertical box for two labels
+            gtk_box_pack_start(GTK_BOX(box), label_box, FALSE, FALSE, 0);
+            
+            // First label (text before space)
+            label = gtk_label_new(button_text);
+            gtk_widget_modify_font(label, quickbuttons_font_desc);
+            gtk_misc_set_alignment(GTK_MISC(label), 0.5, 0.5); // Center-align
+            gtk_box_pack_start(GTK_BOX(label_box), label, FALSE, FALSE, 0);
+            
+            // Second label (text after space)
+            GtkWidget *second_label = gtk_label_new(space_pos + 1);
+            gtk_widget_modify_font(second_label, quickbuttons_font_desc);
+            gtk_misc_set_alignment(GTK_MISC(second_label), 0.5, 0.5); // Center-align
+            gtk_box_pack_start(GTK_BOX(label_box), second_label, FALSE, FALSE, 0);
+            
+            // Store the label box as the "label" for consistency
+            g_object_set_data(G_OBJECT(event_box), "label", label_box);
+        } else {
+            label = gtk_label_new(config->name);
+            gtk_widget_modify_font(label, quickbuttons_font_desc);
+            gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 0);
+            g_object_set_data(G_OBJECT(event_box), "label", label);
+        }
     }
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Waddress"
@@ -3104,7 +3137,6 @@ if (is_project_button) {
     // within the ButtonConfig structure pointed to by config: this address will never be NULL as long as config itself is not NULL.
     g_object_set_data(G_OBJECT(event_box), "config", config);
     g_object_set_data(G_OBJECT(event_box), "is_hover", GINT_TO_POINTER(FALSE));
-    g_object_set_data(G_OBJECT(event_box), "label", label);
     g_object_set_data(G_OBJECT(event_box), "box", box);
     if (is_project_button) {
         update_toggle_button_appearance(event_box, config->is_active, FALSE);
@@ -3118,8 +3150,22 @@ if (is_project_button) {
             gdk_color_parse(BUTTON_INACTIVE_FG, &fg_color);
         }
         gtk_widget_modify_bg(event_box, GTK_STATE_NORMAL, &bg_color);
-        if (label)
-            gtk_widget_modify_fg(label, GTK_STATE_NORMAL, &fg_color);
+        GtkWidget *stored_label = (GtkWidget *)g_object_get_data(G_OBJECT(event_box), "label");
+        if (stored_label) {
+            if (GTK_IS_BOX(stored_label)) {
+                GList *children = gtk_container_get_children(GTK_CONTAINER(stored_label));
+                for (GList *iter = children; iter != NULL; iter = iter->next) {
+                    if (GTK_IS_LABEL(iter->data)) {
+                        gtk_widget_modify_fg(GTK_WIDGET(iter->data), GTK_STATE_NORMAL, &fg_color);
+                        gtk_widget_modify_fg(GTK_WIDGET(iter->data), GTK_STATE_PRELIGHT, &fg_color);
+                    }
+                }
+                g_list_free(children);
+            } else {
+                gtk_widget_modify_fg(stored_label, GTK_STATE_NORMAL, &fg_color);
+                gtk_widget_modify_fg(stored_label, GTK_STATE_PRELIGHT, &fg_color);
+            }
+        }
     }
     #pragma GCC diagnostic pop
     gtk_widget_set_events(event_box, GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK |
@@ -3133,7 +3179,6 @@ if (is_project_button) {
     gtk_widget_show_all(event_box);
     return event_box;
 }
-
 
 
 
