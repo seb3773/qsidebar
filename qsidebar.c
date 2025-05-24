@@ -4039,7 +4039,16 @@ static void main_sidebar(void) {
     GdkMonitor *monitor = gdk_display_get_monitor(gdk_display_get_default(), 0);
     gdk_monitor_get_workarea(monitor, &workarea);
 //
-    int width = workarea.width / 4.4;
+    int width;
+    if (workarea.width >= 1920) {
+        width = (int)(workarea.width / 4.4);
+    } else if (workarea.width >= 1600 && workarea.width < 1920) {
+        width = (int)(workarea.width / 4.2);
+    } else if (workarea.width > 1280 && workarea.width < 1600) {
+        width = (int)(workarea.width / 3.8);
+    } else {
+        width = (int)(workarea.width / 3.6);
+    }
 //
     int font_size = pango_font_description_get_size(panel_font_desc) / PANGO_SCALE;
     int delete_button_height = font_size * 1.2 + 5 + 24;

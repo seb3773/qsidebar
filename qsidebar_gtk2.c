@@ -4492,7 +4492,18 @@ static void main_sidebar(void) {
     if (!get_true_workarea(screen, monitor_num, &workarea)) {
         gdk_screen_get_monitor_geometry(screen, monitor_num, &workarea);
     }
-    int width = (int)(workarea.width / 4.5);
+//
+    int width;
+    if (workarea.width >= 1920) {
+        width = (int)(workarea.width / 4.4);
+    } else if (workarea.width >= 1600 && workarea.width < 1920) {
+        width = (int)(workarea.width / 4.2);
+    } else if (workarea.width > 1280 && workarea.width < 1600) {
+        width = (int)(workarea.width / 3.8);
+    } else {
+        width = (int)(workarea.width / 3.6);
+    }
+//
     int font_size = pango_font_description_get_size(panel_font_desc) / PANGO_SCALE;
     int delete_button_height = (int)(font_size * 1.2 + 5 + 24);
     int slider_height = (sidebar_flags & FLAG_BACKLIGHT_CONTROL) ? 40 : 0;
