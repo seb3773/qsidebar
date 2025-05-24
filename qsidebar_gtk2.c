@@ -3085,7 +3085,6 @@ static GtkWidget* create_button_with_icon_and_label(ButtonConfig *config, int bu
         if (scaled_pixbuf) g_object_unref(scaled_pixbuf);
         if (original_pixbuf) g_object_unref(original_pixbuf);
     }
-    // Modified label creation section
     if (is_project_button) {
         label = gtk_label_new(config->name);
         PangoFontDescription *font_desc = projectbuttons_font_desc
@@ -3105,23 +3104,19 @@ static GtkWidget* create_button_with_icon_and_label(ButtonConfig *config, int bu
         button_text[MAX_LINE_LENGTH - 1] = '\0';
         char *space_pos = strchr(button_text, ' ');
         if (space_pos != NULL) {
-            *space_pos = '\0'; // Split the string at the space
-            GtkWidget *label_box = gtk_vbox_new(FALSE, 2); // Vertical box for two labels
-            gtk_box_pack_start(GTK_BOX(box), label_box, FALSE, FALSE, 0);
-            
-            // First label (text before space)
+            *space_pos = '\0';
+            GtkWidget *label_box = gtk_vbox_new(FALSE, 2);
+            GtkWidget *align = gtk_alignment_new(0.5, 0.5, 0.0, 0.0);
+            gtk_container_add(GTK_CONTAINER(align), label_box);
+            gtk_box_pack_start(GTK_BOX(box), align, FALSE, FALSE, 0);;
             label = gtk_label_new(button_text);
             gtk_widget_modify_font(label, quickbuttons_font_desc);
-            gtk_misc_set_alignment(GTK_MISC(label), 0.5, 0.5); // Center-align
+            gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
             gtk_box_pack_start(GTK_BOX(label_box), label, FALSE, FALSE, 0);
-            
-            // Second label (text after space)
             GtkWidget *second_label = gtk_label_new(space_pos + 1);
             gtk_widget_modify_font(second_label, quickbuttons_font_desc);
-            gtk_misc_set_alignment(GTK_MISC(second_label), 0.5, 0.5); // Center-align
+            gtk_misc_set_alignment(GTK_MISC(second_label), 0.0, 0.5);
             gtk_box_pack_start(GTK_BOX(label_box), second_label, FALSE, FALSE, 0);
-            
-            // Store the label box as the "label" for consistency
             g_object_set_data(G_OBJECT(event_box), "label", label_box);
         } else {
             label = gtk_label_new(config->name);
