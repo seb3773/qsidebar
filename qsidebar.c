@@ -4038,7 +4038,9 @@ static void main_sidebar(void) {
     GdkRectangle workarea = {0};
     GdkMonitor *monitor = gdk_display_get_monitor(gdk_display_get_default(), 0);
     gdk_monitor_get_workarea(monitor, &workarea);
-    int width = workarea.width / 4.5;
+//
+    int width = workarea.width / 4.4;
+//
     int font_size = pango_font_description_get_size(panel_font_desc) / PANGO_SCALE;
     int delete_button_height = font_size * 1.2 + 5 + 24;
     int slider_height = (sidebar_flags & FLAG_BACKLIGHT_CONTROL) ? 40 : 0;
