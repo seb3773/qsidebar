@@ -16,7 +16,9 @@
 #include <gdk/gdkx.h>
 #include <dbus/dbus.h>
 #include <pthread.h>
+#ifndef WITHOUT_DCOP
 #include "qsidebar_dcop.h"
+#endif
 #include <X11/extensions/Xinerama.h>
 #include <cairo.h>
 #include <X11/Xatom.h>
@@ -4274,12 +4276,12 @@ static void on_status_icon_popup_menu(GtkStatusIcon *status_icon __attribute__((
 }
 
 
-
 static void update_systray_icon(void) {
     if (!(sidebar_flags & FLAG_USE_SYSTRAY) && !(sidebar_flags & FLAG_TRINITY_APPLET)) {
         return;
     }
     const char *icon_path;
+    char icon_path_buffer[256];
     if (sidebar_flags & FLAG_FOCUS_ASSIST) {
         icon_path = (new_notifs > 0) ? tray_icon_focus_filled : tray_icon_focus_normal;
     } else if (!(sidebar_flags & FLAG_NOTIF_NUMBER_INDICATOR)) {
@@ -4289,53 +4291,12 @@ static void update_systray_icon(void) {
         if (notif_count == 0) {
             icon_path = tray_icon_normal;
         } else {
-            char icon_path_buffer[256];
             if (notif_count >= 1 && notif_count <= 9) {
                 snprintf(icon_path_buffer, sizeof(icon_path_buffer), "%s%d.png", tray_prefix, notif_count);
             } else {
                 snprintf(icon_path_buffer, sizeof(icon_path_buffer), "%s9+.png", tray_prefix);
             }
             icon_path = icon_path_buffer;
-            if (g_file_test(icon_path, G_FILE_TEST_EXISTS)) {
-                if ((sidebar_flags & FLAG_USE_SYSTRAY) && !(sidebar_flags & FLAG_TRINITY_APPLET)) {
-                    if (!status_icon) {
-                        return;
-                    }
-                    GdkPixbuf *cropped_pixbuf = crop_icon(icon_path);
-                    if (cropped_pixbuf) {
-                        if ((sidebar_flags & FLAG_DARKMODE) && !(sidebar_flags & FLAG_TRAYCOLORMODE)) {
-                            GdkPixbuf *inverted_pixbuf = invert_pixbuf_colors(cropped_pixbuf);
-                            if (inverted_pixbuf) {
-                                #pragma GCC diagnostic push
-                                #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-                                gtk_status_icon_set_from_pixbuf(status_icon, inverted_pixbuf);
-                                #pragma GCC diagnostic pop
-                                g_object_unref(inverted_pixbuf);
-                            } else {
-                                g_object_unref(cropped_pixbuf);
-                                return;
-                            }
-                        } else {
-                            #pragma GCC diagnostic push
-                            #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-                            gtk_status_icon_set_from_pixbuf(status_icon, cropped_pixbuf);
-                            #pragma GCC diagnostic pop
-                        }
-                        g_object_unref(cropped_pixbuf);
-                    }
-                }
-                if (sidebar_flags & FLAG_TRINITY_APPLET) {
-                    set_sidebar_icon(
-                        icon_path,
-                        (sidebar_flags & FLAG_DARKMODE) && !(sidebar_flags & FLAG_TRAYCOLORMODE),
-                        (sidebar_flags & FLAG_FOCUS_ASSIST) != 0,
-                        (sidebar_flags & FLAG_NOTIF_HIDE_ICON) != 0,
-                        !(sidebar_flags & FLAG_NOTIF_NUMBER_INDICATOR));
-                }
-            } else {
-                g_print("System tray icon file not found: %s\n", icon_path);
-            }
-            return;
         }
     }
     if (g_file_test(icon_path, G_FILE_TEST_EXISTS)) {
@@ -4367,12 +4328,14 @@ static void update_systray_icon(void) {
             }
         }
         if (sidebar_flags & FLAG_TRINITY_APPLET) {
+        #ifndef WITHOUT_DCOP
             set_sidebar_icon(
                 icon_path,
                 (sidebar_flags & FLAG_DARKMODE) && !(sidebar_flags & FLAG_TRAYCOLORMODE),
                 (sidebar_flags & FLAG_FOCUS_ASSIST) != 0,
                 (sidebar_flags & FLAG_NOTIF_HIDE_ICON) != 0,
                 !(sidebar_flags & FLAG_NOTIF_NUMBER_INDICATOR));
+#endif
         }
     } else {
         g_print("System tray icon file not found: %s\n", icon_path);

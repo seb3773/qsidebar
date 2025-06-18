@@ -18,7 +18,9 @@
 #include <dbus/dbus.h>
 #include <pthread.h>
 #include <sys/wait.h>
+#ifndef WITHOUT_DCOP
 #include "qsidebar_dcop.h"
+#endif
 
 #define NM_DBUS_SERVICE      "org.freedesktop.NetworkManager"
 #define NM_DBUS_PATH         "/org/freedesktop/NetworkManager"
@@ -3962,14 +3964,16 @@ if (sidebar_flags & FLAG_FOCUS_ASSIST) {
                 g_object_unref(cropped_pixbuf);
             }
         }
-        if (sidebar_flags & FLAG_TRINITY_APPLET) {
-            set_sidebar_icon(
-                icon_path,
-                (sidebar_flags & FLAG_DARKMODE) && !(sidebar_flags & FLAG_TRAYCOLORMODE),
-                (sidebar_flags & FLAG_FOCUS_ASSIST) != 0,
-                (sidebar_flags & FLAG_NOTIF_HIDE_ICON) != 0,
-                !(sidebar_flags & FLAG_NOTIF_NUMBER_INDICATOR));
-        }
+if (sidebar_flags & FLAG_TRINITY_APPLET) {
+#ifndef WITHOUT_DCOP
+    set_sidebar_icon(
+        icon_path,
+        (sidebar_flags & FLAG_DARKMODE) && !(sidebar_flags & FLAG_TRAYCOLORMODE),
+        (sidebar_flags & FLAG_FOCUS_ASSIST) != 0,
+        (sidebar_flags & FLAG_NOTIF_HIDE_ICON) != 0,
+        !(sidebar_flags & FLAG_NOTIF_NUMBER_INDICATOR));
+#endif
+}
     } else {
         g_print("System tray icon file not found: %s\n", icon_path);
     }
