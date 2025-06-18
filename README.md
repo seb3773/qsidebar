@@ -65,12 +65,17 @@ Then Move this lib to /opt/trinity/lib/
   
 2) Build qsidebar binary:  
 - gtk3:
+ * With dcop support for trinity kicker applet:
 gcc -g0 -O2 -DNDEBUG -Wall -Wextra -Wl,-z,norelro -fstrict-aliasing -flto -ffunction-sections -fdata-sections -fno-asynchronous-unwind-tables -fno-unwind-tables -fomit-frame-pointer -ffast-math -fno-math-errno -fvisibility=hidden -fmerge-all-constants -fuse-ld=gold -Wl,--gc-sections,--build-id=none,--as-needed,--strip-all,-O1,--icf=all,--compress-debug-sections=zlib -s -o qsidebar qsidebar.c `pkg-config --cflags --libs gtk+-3.0 libcanberra-gtk3 libnm gio-2.0 glib-2.0 x11 xrandr` -pthread -L. -lqsidebar_dcop -L/opt/trinity/lib -ltqt-mt -lstdc++ -ldbus-1 -Wl,-rpath=.:/opt/trinity/lib && strip --strip-all ./qsidebar
-
+ * Without dcop support:
+gcc -DWITHOUT_DCOP -g0 -O2 -DNDEBUG -Wall -Wextra -Wl,-z,norelro -fstrict-aliasing -flto -ffunction-sections -fdata-sections -fno-asynchronous-unwind-tables -fno-unwind-tables -fomit-frame-pointer -ffast-math -fno-math-errno -fvisibility=hidden -fmerge-all-constants -fuse-ld=gold -Wl,--gc-sections,--build-id=none,--as-needed,--strip-all,-O1,--icf=all,--compress-debug-sections=zlib -s -o qsidebar qsidebar.c `pkg-config --cflags --libs gtk+-3.0 libcanberra-gtk3 libnm gio-2.0 glib-2.0 x11 xrandr` -pthread -L. -lqsidebar_dcop -L/opt/trinity/lib -ltqt-mt -lstdc++ -ldbus-1 -Wl,-rpath=.:/opt/trinity/lib && strip --strip-all ./qsidebar
   
     
 - or gtk2:  
+ * With dcop support for trinity kicker applet:
 gcc -O2 -DNDEBUG -Wall -Wextra -Wno-cast-function-type -Wl,-z,norelro -fstrict-aliasing -flto=3 -ffunction-sections -fdata-sections -fno-asynchronous-unwind-tables -fno-unwind-tables -fomit-frame-pointer -ffast-math -fno-math-errno -fvisibility=hidden -fmerge-all-constants -fuse-ld=gold -Wl,--gc-sections,--build-id=none,--as-needed,--strip-all,-O1,--icf=all,--compress-debug-sections=zlib -s -o qsidebar qsidebar_gtk2.c `pkg-config --cflags --libs gtk+-2.0 libcanberra-gtk gio-2.0 glib-2.0 x11 xrandr dbus-1 xinerama libnm` -pthread -L. -lqsidebar_dcop -L/opt/trinity/lib -ltqt-mt -lstdc++ -ldbus-1 -Wl,-rpath=.:/opt/trinity/lib && strip --strip-all ./qsidebar
+ * Without dcop support:
+gcc -DWITHOUT_DCOP -O2 -DNDEBUG -Wall -Wextra -Wno-cast-function-type -Wl,-z,norelro -fstrict-aliasing -flto=3 -ffunction-sections -fdata-sections -fno-asynchronous-unwind-tables -fno-unwind-tables -fomit-frame-pointer -ffast-math -fno-math-errno -fvisibility=hidden -fmerge-all-constants -fuse-ld=gold -Wl,--gc-sections,--build-id=none,--as-needed,--strip-all,-O1,--icf=all,--compress-debug-sections=zlib -s -o qsidebar qsidebar_gtk2.c `pkg-config --cflags --libs gtk+-2.0 libcanberra-gtk gio-2.0 glib-2.0 x11 xrandr dbus-1 xinerama libnm` -pthread -L. -lqsidebar_dcop -L/opt/trinity/lib -ltqt-mt -lstdc++ -ldbus-1 -Wl,-rpath=.:/opt/trinity/lib && strip --strip-all ./qsidebar
 
     
 Then Move the binary "qsidebar" to /usr/share/local/bin/  
