@@ -175,12 +175,9 @@ Configure settings for the display management ("Project") panel.
 
 **[Notifications filters]**
 
-Define up to 20 filters for incoming notifications. Each filter requires a `notif_filter_x_type` (`title`, `body`, `title+body`, or `app_name`), a `notif_filter_x_string` to search for, and at least a `notif_filter_x_action` (`ignore`, `accept_but_silent`, `set_urgent`) or a `notif_filter_x_exec` (command to execute).
+Filters for incoming notifications. Each filter requires a `notif_filter_x_type` (`title`, `body`, `title+body`, or `app_name`), a `notif_filter_x_string` to search for, and at least a `notif_filter_x_action` (`ignore`, `accept_but_silent`, `set_urgent`) or a `notif_filter_x_exec` (command to execute).
   
-  
-**[Notifications filters]**
-
-Define up to 20 filters for incoming notifications. qsidebar relies on the "notify-daemon" (specifically, the libnotify implementation) for handling notifications. This means that qsidebar may conflict with other notification daemons like Dunst, Mako, or Xfce4-notifyd. If another daemon is already running and has claimed ownership of the notification bus, qsidebar will display the error message "Not primary owner of org.freedesktop.Notifications or already running" and exit.
+You can define up to 20 filters for incoming notifications. qsidebar relies on the "notify-daemon" (specifically, the libnotify implementation) for handling notifications. This means that qsidebar may conflict with other notification daemons like Dunst, Mako, or Xfce4-notifyd. If another daemon is already running and has claimed ownership of the notification bus, qsidebar will display the error message "Not primary owner of org.freedesktop.Notifications or already running" and exit.
 
 Each filter requires a `notif_filter_x_type` (`title`, `body`, `title+body`, or `app_name`), a `notif_filter_x_string` to search for, and at least a `notif_filter_x_action` (`ignore`, `accept_but_silent`, `set_urgent`) or a `notif_filter_x_exec` (command to execute).
 
