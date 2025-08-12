@@ -35,7 +35,7 @@
 However, you're welcome to adapt the code for Wayland if you wish (the "project" part seems to be the most difficult to adapt, among other things), if you feel like wasting your time... ;-)
 A few words about Wayland: I completely despise it. In my opinion, it's absolutely useless, and NO, it is NOT the future of Linux. It's a 15-year-old project that still can't do the basic things X11 has been capable of for decades. It breaks compatibility and offers absolutely NO advantages compared to X11.
 Red Hat and IBM want to kill X11 because they KNOW that Wayland is a piece of s*** that simply cannot compete with X11.
-If it were a 3- or 4-year-old project, I might be more lenient — but 15 years? No way. It's a dead end. You'll see. Take a look at Xlibre instead ;)
+If it were a 3- or 4-year-old project, I might be more lenient — but 15 years? No way.
 
 * Not gtk4 version, as I don't really see the reason to do that, gtk4 is f***** bloated and I profondly dislike desktop apps made in gtk4. So nothing like that planned for now. (But once again, if you want a gtk4 version, let's do it yourself, I think the changes are not so much for this to be gtk4 compatible).
   
