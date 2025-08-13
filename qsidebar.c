@@ -33,7 +33,7 @@
 #define MAX_BUTTONS 16
 #define MAX_LINE_LENGTH 200
 #define MAX_ICON_LENGTH 8192 
-#define MAX_DBUS_NOTIFICATIONS 20
+#define MAX_DBUS_NOTIFICATIONS 40
 #define ICON_PATH "/usr/share/qsidebar/icons/"
 #define SCRIPT_PATH "/usr/share/qsidebar/scripts/"
 #define MAX_OUTPUTS 10
@@ -859,25 +859,90 @@ static RRCrtc find_available_crtc(Display *dpy, XRRScreenResources *resources, R
 
 
 
-
 static void update_window_sizes(AnimationData *anim_data) {
-    GdkRectangle workarea;
     GdkDisplay *display = gdk_display_get_default();
-    GdkMonitor *monitor = gdk_display_get_monitor(display, (sidebar_flags & FLAG_EXTEND_MODE) ? 1 : 0);
-    if (!monitor) {
-        monitor = gdk_display_get_monitor(display, 0);
+    GdkRectangle workarea = {0};
+    gboolean found_monitor = FALSE;
+    if (sidebar_flags & FLAG_JUST_CHANGED_CONFIG) {
+        gdk_display_sync(display);
+        usleep(150000);
+        gdk_display_sync(display);
+    } else {
+        gdk_display_sync(display);
+        usleep(50000);
     }
-    gdk_monitor_get_workarea(monitor, &workarea);
-int window_height = ((sidebar_flags & FLAG_EXTEND_MODE) && (sidebar_flags & FLAG_PROJECT_EXTEND_FULL_HEIGHT))
-    ? get_secondary_height()
-    : anim_data->height;
-gtk_window_resize(GTK_WINDOW(anim_data->window), anim_data->width, window_height);
-   if (anim_data->click_window) {
-        int click_window_width = ((sidebar_flags & FLAG_EXTEND_MODE) ? total_display_width : workarea.width) - anim_data->width;
+    if (sidebar_flags & FLAG_EXTEND_MODE) {
+        int num_monitors = gdk_display_get_n_monitors(display);
+        int max_right_edge = -1;
+        for (int i = 0; i < num_monitors; i++) {
+            GdkMonitor *monitor = gdk_display_get_monitor(display, i);
+            if (monitor) {
+                GdkRectangle temp_workarea;
+                gdk_monitor_get_workarea(monitor, &temp_workarea);
+                int right_edge = temp_workarea.x + temp_workarea.width;
+                if (right_edge > max_right_edge) {
+                    max_right_edge = right_edge;
+                    workarea = temp_workarea;
+                    found_monitor = TRUE;
+                }
+            }
+        }
+    } else {
+        GdkMonitor *monitor = gdk_display_get_monitor(display, 0);
+        if (monitor) {
+            gdk_monitor_get_workarea(monitor, &workarea);
+            found_monitor = TRUE;
+        }
+    }
+    if (!found_monitor) {
+        GdkMonitor *monitor = gdk_display_get_monitor(display, 0);
+        if (monitor) {
+            gdk_monitor_get_workarea(monitor, &workarea);
+            found_monitor = TRUE;
+        }
+    }
+    if (!found_monitor) {
+        return;
+    }
+    int correct_sidebar_x = workarea.x + workarea.width - anim_data->width;
+    if (anim_data->current_x != correct_sidebar_x || (sidebar_flags & FLAG_JUST_CHANGED_CONFIG)) {
+        anim_data->start_x = workarea.x + workarea.width;
+        anim_data->target_x = correct_sidebar_x;
+        anim_data->current_x = anim_data->start_x;
+        gtk_window_move(GTK_WINDOW(anim_data->window), anim_data->start_x, anim_data->y_position);
+        if (sidebar_flags & FLAG_EXTEND_MODE) {
+            int num_monitors = gdk_display_get_n_monitors(display);
+            int max_right_edge = -1;
+            for (int i = 0; i < num_monitors; i++) {
+                GdkMonitor *monitor = gdk_display_get_monitor(display, i);
+                if (monitor) {
+                    GdkRectangle temp_workarea;
+                    gdk_monitor_get_workarea(monitor, &temp_workarea);
+                    int right_edge = temp_workarea.x + temp_workarea.width;
+                    if (right_edge > max_right_edge) {
+                        max_right_edge = right_edge;
+                        workarea = temp_workarea;
+                    }
+                }
+            }
+        }
+    }
+    int window_height = ((sidebar_flags & FLAG_EXTEND_MODE) && (sidebar_flags & FLAG_PROJECT_EXTEND_FULL_HEIGHT))
+        ? get_secondary_height()
+        : anim_data->height;
+    gtk_window_resize(GTK_WINDOW(anim_data->window), anim_data->width, window_height);
+    if (anim_data->click_window) {
+        int click_window_width = workarea.width - anim_data->width;
+        int click_window_x = workarea.x;
+        int click_window_y = workarea.y;
         gtk_window_resize(GTK_WINDOW(anim_data->click_window), click_window_width, window_height);
-        gtk_window_move(GTK_WINDOW(anim_data->click_window), workarea.x, workarea.y);
+        gtk_window_move(GTK_WINDOW(anim_data->click_window), click_window_x, click_window_y);
+    }
+    if (sidebar_flags & FLAG_JUST_CHANGED_CONFIG) {
+        sidebar_flags &= ~FLAG_JUST_CHANGED_CONFIG;
     }
 }
+
 
 
 
@@ -893,9 +958,11 @@ static void handle_project_action(const char *action) {
     if (!displays.has_secondary) {
         return;
     }
-    const char *current_mode = detect_display_configuration();
+     const char *current_mode = detect_display_configuration();
     if (strcmp(current_mode, action) == 0) {
-        return;
+        if (strcmp(action, "Extend") != 0) {
+            return;
+        }
     }
     hide_project_panel_immediately();
     usleep(200000);
@@ -1040,153 +1107,111 @@ static void handle_project_action(const char *action) {
         secondary_crtc = secondary_output_info->crtc ? secondary_output_info->crtc : find_available_crtc(dpy, resources, primary_crtc);
     }
     Status status;
-    if (strcmp(action, "PC screen only") == 0) {
-        XRRSetOutputPrimary(dpy, root, primary_output);
-        status = XRRSetCrtcConfig(dpy, resources, primary_crtc,
-                                  CurrentTime, 0, 0, primary_mode,
-                                  RR_Rotate_0, &primary_output, 1);
-        if (status != Success) {
-            g_print("Failed to configure primary display (%d)\n", status);
-            goto cleanup;
-        }
-        XRRSetScreenSize(dpy, root, primary_width, primary_height,
-                         primary_width * 25 / 10, primary_height * 25 / 10);
-        sidebar_flags |= FLAG_JUST_CHANGED_CONFIG;
-        sidebar_flags &= ~FLAG_EXTEND_MODE;
-        XSync(dpy, False);
-        {
-            GdkDisplay *gdk_display = gdk_display_get_default();
-            if (gdk_display) {
-                GdkMonitor *monitor = gdk_display_get_monitor(gdk_display, 0);
-                if (monitor && anim_data) {
-                    GdkRectangle workarea;
-                    gdk_monitor_get_workarea(monitor, &workarea);
-                    anim_data->start_x = workarea.width;
-                    anim_data->target_x = workarea.width - anim_data->width;
-                    anim_data->current_x = anim_data->start_x;
-                    gtk_window_move(GTK_WINDOW(anim_data->window), anim_data->start_x, anim_data->y_position);
-                    update_window_sizes(anim_data);
-                }
-            }
-        }
-    } 
-    else if (strcmp(action, "Duplicate") == 0) {
-        XRRSetOutputPrimary(dpy, root, primary_output);
-        status = XRRSetCrtcConfig(dpy, resources, primary_crtc,
-                                  CurrentTime, 0, 0, primary_mode,
-                                  RR_Rotate_0, &primary_output, 1);
-        if (status != Success) {
-            g_print("Failed to configure primary display for duplication (%d)\n", status);
-            goto cleanup;
-        }
-        XSync(dpy, False);
+if (strcmp(action, "PC screen only") == 0) {
+    XRRSetOutputPrimary(dpy, root, primary_output);
+    status = XRRSetCrtcConfig(dpy, resources, primary_crtc,
+                              CurrentTime, 0, 0, primary_mode,
+                              RR_Rotate_0, &primary_output, 1);
+    if (status != Success) {
+        g_print("Failed to configure primary display (%d)\n", status);
+        goto cleanup;
+    }
+    XRRSetScreenSize(dpy, root, primary_width, primary_height,
+                     primary_width * 25 / 10, primary_height * 25 / 10);
+    sidebar_flags |= FLAG_JUST_CHANGED_CONFIG;
+    sidebar_flags &= ~FLAG_EXTEND_MODE;
+    XSync(dpy, False);
+    
+    update_window_sizes(anim_data);
+}
+else if (strcmp(action, "Duplicate") == 0) {
+    XRRSetOutputPrimary(dpy, root, primary_output);
+    status = XRRSetCrtcConfig(dpy, resources, primary_crtc,
+                              CurrentTime, 0, 0, primary_mode,
+                              RR_Rotate_0, &primary_output, 1);
+    if (status != Success) {
+        g_print("Failed to configure primary display for duplication (%d)\n", status);
+        goto cleanup;
+    }
+    XSync(dpy, False);
+    if (secondary_crtc == None) {
+        secondary_crtc = find_available_crtc(dpy, resources, primary_crtc);
         if (secondary_crtc == None) {
-            secondary_crtc = find_available_crtc(dpy, resources, primary_crtc);
-            if (secondary_crtc == None) {
-                g_print("No CRTC available for secondary display\n");
-                goto cleanup;
-            }
-        }
-        status = XRRSetCrtcConfig(dpy, resources, secondary_crtc,
-                                  CurrentTime, 0, 0, secondary_mode,
-                                  RR_Rotate_0, &secondary_output, 1);
-        if (status != Success) {
-            g_print("Failed to configure secondary display for duplication (%d)\n", status);
+            g_print("No CRTC available for secondary display\n");
             goto cleanup;
-        }
-        XRRSetScreenSize(dpy, root, primary_width, primary_height,
-                         primary_width * 25 / 10, primary_height * 25 / 10);
-        sidebar_flags |= FLAG_JUST_CHANGED_CONFIG;
-        sidebar_flags &= ~FLAG_EXTEND_MODE;
-        XSync(dpy, False);
-        {
-            GdkDisplay *gdk_display = gdk_display_get_default();
-            if (gdk_display) {
-                GdkMonitor *monitor = gdk_display_get_monitor(gdk_display, 0);
-                if (monitor && anim_data) {
-                    GdkRectangle workarea;
-                    gdk_monitor_get_workarea(monitor, &workarea);
-                    anim_data->start_x = workarea.width;
-                    anim_data->target_x = workarea.width - anim_data->width;
-                    anim_data->current_x = anim_data->start_x;
-                    gtk_window_move(GTK_WINDOW(anim_data->window), anim_data->start_x, anim_data->y_position);
-                    update_window_sizes(anim_data);
-                }
-            }
-        }
-    } 
-    else if (strcmp(action, "Extend") == 0) {
-        XRRSetOutputPrimary(dpy, root, primary_output);
-        status = XRRSetCrtcConfig(dpy, resources, primary_crtc,
-                                  CurrentTime, 0, 0, primary_mode,
-                                  RR_Rotate_0, &primary_output, 1);
-        if (status != Success) {
-            g_print("Failed to configure primary display for extend (%d)\n", status);
-            goto cleanup;
-        }
-        XSync(dpy, False);
-        if (secondary_crtc == None) {
-            secondary_crtc = find_available_crtc(dpy, resources, primary_crtc);
-            if (secondary_crtc == None) {
-                g_print("No CRTC available for secondary display\n");
-                goto cleanup;
-            }
-        }
-        status = XRRSetCrtcConfig(dpy, resources, secondary_crtc,
-                                  CurrentTime, primary_width, 0, secondary_mode,
-                                  RR_Rotate_0, &secondary_output, 1);
-        if (status != Success) {
-            g_print("Failed to configure secondary display for extend (%d)\n", status);
-            goto cleanup;
-        }
-        XRRSetScreenSize(dpy, root, primary_width + secondary_width, primary_height,
-                         (primary_width + secondary_width) * 25 / 10, primary_height * 25 / 10);
-        sidebar_flags |= FLAG_JUST_CHANGED_CONFIG;
-        sidebar_flags |= FLAG_EXTEND_MODE;
-        total_display_width = primary_width + secondary_width;
-        XSync(dpy, False);
-        if (anim_data) {
-            anim_data->start_x = primary_width + secondary_width;
-            anim_data->target_x = (primary_width + secondary_width) - anim_data->width;
-            anim_data->current_x = anim_data->start_x;
-            gtk_window_move(GTK_WINDOW(anim_data->window), anim_data->start_x, anim_data->y_position);
-            update_window_sizes(anim_data);
-        }
-    } 
-    else if (strcmp(action, "Second screen only") == 0) {
-        if (secondary_crtc == None) {
-            secondary_crtc = find_available_crtc(dpy, resources, None);
-            if (secondary_crtc == None) {
-                g_print("No CRTC available for secondary display\n");
-                goto cleanup;
-            }
-        }
-        status = XRRSetCrtcConfig(dpy, resources, secondary_crtc,
-                                  CurrentTime, 0, 0, secondary_mode,
-                                  RR_Rotate_0, &secondary_output, 1);
-        if (status != Success) {
-            g_print("Failed to configure secondary display (%d)\n", status);
-            goto cleanup;
-        }
-        sidebar_flags |= FLAG_JUST_CHANGED_CONFIG;
-        sidebar_flags &= ~FLAG_EXTEND_MODE;
-        XSync(dpy, False);
-        {
-            GdkDisplay *gdk_display = gdk_display_get_default();
-            if (gdk_display) {
-                GdkMonitor *monitor = gdk_display_get_monitor(gdk_display, 0);
-                if (monitor && anim_data) {
-                    GdkRectangle workarea;
-                    gdk_monitor_get_workarea(monitor, &workarea);
-                    anim_data->start_x = workarea.width;
-                    anim_data->target_x = workarea.width - anim_data->width;
-                    anim_data->current_x = anim_data->start_x;
-                    gtk_window_move(GTK_WINDOW(anim_data->window), anim_data->start_x, anim_data->y_position);
-                    update_window_sizes(anim_data);
-                }
-            }
         }
     }
+    status = XRRSetCrtcConfig(dpy, resources, secondary_crtc,
+                              CurrentTime, 0, 0, secondary_mode,
+                              RR_Rotate_0, &secondary_output, 1);
+    if (status != Success) {
+        g_print("Failed to configure secondary display for duplication (%d)\n", status);
+        goto cleanup;
+    }
+    XRRSetScreenSize(dpy, root, primary_width, primary_height,
+                     primary_width * 25 / 10, primary_height * 25 / 10);
+    sidebar_flags |= FLAG_JUST_CHANGED_CONFIG;
+    sidebar_flags &= ~FLAG_EXTEND_MODE;
+    XSync(dpy, False);
+    
+    update_window_sizes(anim_data);
+}
+else if (strcmp(action, "Extend") == 0) {
+    int invert_extend = (sidebar_flags & FLAG_EXTEND_MODE) ? 1 : 0;
+    XRRSetOutputPrimary(dpy, root, primary_output);
+    int primary_x   = invert_extend ? secondary_width : 0;
+    int secondary_x = invert_extend ? 0 : primary_width;
+    status = XRRSetCrtcConfig(dpy, resources, primary_crtc,
+                              CurrentTime, primary_x, 0, primary_mode,
+                              RR_Rotate_0, &primary_output, 1);
+    if (status != Success) {
+        g_print("Failed to configure primary display for extend (%d)\n", status);
+        goto cleanup;
+    }
+    XSync(dpy, False);
+    if (secondary_crtc == None) {
+        secondary_crtc = find_available_crtc(dpy, resources, primary_crtc);
+        if (secondary_crtc == None) {
+            g_print("No CRTC available for secondary display\n");
+            goto cleanup;
+        }
+    }
+    status = XRRSetCrtcConfig(dpy, resources, secondary_crtc,
+                              CurrentTime, secondary_x, 0, secondary_mode,
+                              RR_Rotate_0, &secondary_output, 1);
+    if (status != Success) {
+        g_print("Failed to configure secondary display for extend (%d)\n", status);
+        goto cleanup;
+    }
+    XRRSetScreenSize(dpy, root, primary_width + secondary_width, primary_height, (primary_width + secondary_width) * 25 / 10, primary_height * 25 / 10);
+    sidebar_flags |= FLAG_JUST_CHANGED_CONFIG;
+    sidebar_flags |= FLAG_EXTEND_MODE;
+    total_display_width = primary_width + secondary_width;
+    XSync(dpy, False);
+    usleep(100000);
+    update_window_sizes(anim_data);
+}
+else if (strcmp(action, "Second screen only") == 0) {
+    if (secondary_crtc == None) {
+        secondary_crtc = find_available_crtc(dpy, resources, None);
+        if (secondary_crtc == None) {
+            g_print("No CRTC available for secondary display\n");
+            goto cleanup;
+        }
+    }
+    status = XRRSetCrtcConfig(dpy, resources, secondary_crtc,
+                              CurrentTime, 0, 0, secondary_mode,
+                              RR_Rotate_0, &secondary_output, 1);
+    if (status != Success) {
+        g_print("Failed to configure secondary display (%d)\n", status);
+        goto cleanup;
+    }
+    sidebar_flags |= FLAG_JUST_CHANGED_CONFIG;
+    sidebar_flags &= ~FLAG_EXTEND_MODE;
+    XSync(dpy, False);
+    
+    update_window_sizes(anim_data);
+}
 cleanup:
     if (crtc_info) {
         XRRFreeCrtcInfo(crtc_info);
@@ -1297,7 +1322,6 @@ void apply_settings(const Gamma *gamma, const float *brightness, char outputs[MA
                 XRRCrtcGamma *ng = XRRAllocGamma(sz);
                 if (!ng) { XRRFreeGamma(cg); XRRFreeOutputInfo(oi); continue; }
                 float ar = ab * ag.r, agv = ab * ag.g, abv = ab * ag.b;
-                //clamping logic (as a safety measure to clamp the values in case of potential overflow ) and disable compiler warnings
                 #pragma GCC diagnostic push
                 #pragma GCC diagnostic ignored "-Wtype-limits"
                 unsigned int ar65535 = (unsigned int)(ar * 65535.0f + 0.5f);
@@ -1309,7 +1333,6 @@ void apply_settings(const Gamma *gamma, const float *brightness, char outputs[MA
                     ng->red[l]   = ar65535 * val / 65535;
                     ng->green[l] = agv65535 * val / 65535;
                     ng->blue[l]  = abv65535 * val / 65535;
-                    //clamping logic (as a safety measure to clamp the values in case of potential overflow ) and disable compiler warnings
                     #pragma GCC diagnostic push
                     #pragma GCC diagnostic ignored "-Wtype-limits"
                     if (ng->red[l] > 65535) ng->red[l] = 65535;
@@ -4170,6 +4193,7 @@ static void main_sidebar(void) {
     gtk_widget_set_opacity(window, 1.0);
     g_signal_connect(window, "destroy", G_CALLBACK(on_window_destroy), NULL);
     g_signal_connect(window, "draw", G_CALLBACK(on_draw), NULL);
+ update_window_sizes(anim_data);
     gtk_widget_show_all(window);
     gtk_main();
     cleanup_sidebar();
