@@ -121,7 +121,7 @@ The recommended compilation process uses `gcc` with the following notable flags:
 ----------------------------------------------------------- 
 **Packages:**
 
-Debian packages are coming soon for a simplified installation.  
+Debian packages are available in releases for a simplified installation (use qsidebar_trinity.deb for TDE integration, or simply qsidebar.deb for any other DE).  
 
 -----------------------------------------------------------
 ## Configuring qsidebar
