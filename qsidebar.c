@@ -1,3 +1,16 @@
+// A Customizable Notifications and Quick Actions Center for Linux
+// GTK3
+// Build:
+//  - With dcop support for trinity kicker applet:
+//  gcc -g0 -O2 -DNDEBUG -Wall -Wextra -Wl,-z,norelro -fstrict-aliasing -flto -ffunction-sections -fdata-sections -fno-asynchronous-unwind-tables -fno-unwind-tables -fomit-frame-pointer -ffast-math -fno-math-errno -fvisibility=hidden -fmerge-all-constants -fuse-ld=gold -Wl,--gc-sections,--build-id=none,--as-needed,--strip-all,-O1,--icf=all,--compress-debug-sections=zlib -s -o qsidebar qsidebar.c `pkg-config --cflags --libs gtk+-3.0 libcanberra-gtk3 libnm gio-2.0 glib-2.0 x11 xrandr` -pthread -L. -lqsidebar_dcop -L/opt/trinity/lib -ltqt-mt -lstdc++ -ldbus-1 -Wl,-rpath=.:/opt/trinity/lib && strip --strip-all ./qsidebar && sstrip ./qsidebar
+// - Without dcop support: 
+// gcc -DWITHOUT_DCOP -g0 -O2 -DNDEBUG -Wall -Wextra -Wl,-z,norelro -fstrict-aliasing -flto -ffunction-sections -fdata-sections -fno-asynchronous-unwind-tables -fno-unwind-tables -fomit-frame-pointer -ffast-math -fno-math-errno -fvisibility=hidden -fmerge-all-constants -fuse-ld=gold -Wl,--gc-sections,--build-id=none,--as-needed,--strip-all,-O1,--icf=all,--compress-debug-sections=zlib -s -o qsidebar qsidebar.c `pkg-config --cflags --libs gtk+-3.0 libcanberra-gtk3 libnm gio-2.0 glib-2.0 x11 xrandr` -pthread -lstdc++ -ldbus-1 && strip --strip-all ./qsidebar && sstrip ./qsidebar
+//
+// ** valgrind check: 
+// gcc -g -O0 -Wall -Wextra -o qsidebar qsidebar.c `pkg-config --cflags --libs gtk+-3.0 libcanberra-gtk3 libnm gio-2.0 glib-2.0 x11 xrandr` -pthread -L. -lqsidebar_dcop -L/opt/trinity/lib -ltqt-mt -lstdc++ -ldbus-1 -Wl,-rpath=.:/opt/trinity/lib
+// valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --suppressions=gtk.supp ./qsidebar
+//
+
 #include <gtk/gtk.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,14 +61,36 @@
 
 #define DEFAULT_CONFIG_CONTENT \
 "[General settings]\n" \
-"option_tint=230,230,230\n" \
-"option_opacity=0.96\n" \
-"option_nightlight_intensity=0.8\n" \
-"option_dark_mode=0\n" \
+"option_trinity_kicker_applet=1\n" \
+"option_tray_icon=default\n" \
+"option_tint=default\n" \
+"option_opacity=0.98\n" \
+"option_panel_image=none\n" \
+"option_panel_image_solidbackground=1\n" \
 "option_panel_anim_type=slide\n" \
+"option_panel_anim_ease_effect=0\n" \
+"option_panel_title=default\n" \
+"option_dark_mode=0\n" \
+"option_nightlight_intensity=0.7\n" \
+"option_backlight_control=1\n" \
+"option_rounded_buttons=0\n" \
 "option_use_transparent_click=1\n" \
-"option_notif_sound=win10\n\n" \
-"option_backlight_control=0\n" \
+"option_transparent_click_mode=ALL\n" \
+"option_transparent_type=COMBO\n" \
+"option_bottom_margin=0\n" \
+"option_notif_sound=win10\n" \
+"option_notif_number_indicator=1\n" \
+"option_notif_hide_icon=0\n" \
+"option_notifs_popup_position=default\n" \
+"option_notifs_popup_color=default\n" \
+"option_notif_popup_opacity=1\n" \
+"option_notif_low_timeout=15\n" \
+"option_notif_normal_timeout=25\n" \
+"option_paneltitle_font=system\n" \
+"option_panel_text_font=system\n" \
+"option_quick_actions_font=system\n" \
+"option_project_font=system\n" \
+"option_notif_font=system\n" \
 "[Quick action buttons]\n" \
 "button_1_name={wifi}\n" \
 "button_1_icon=wifi.png\n\n" \
@@ -64,21 +99,29 @@
 "button_3_name=Network\n" \
 "button_3_type=oneshot\n" \
 "button_3_icon=network.png\n" \
-"button_3_cmd=/usr/share/qsidebar/scripts/network.sh\n\n" \
-"button_4_name=Snapshot\n" \
-"button_4_type=oneshot\n" \
-"button_4_icon=snapshot.png\n" \
-"button_4_cmd=ksnapshot\n\n" \
-"button_5_name={airplane}\n" \
-"button_5_icon=airplane.png\n\n" \
-"button_6_name=All Settings\n" \
-"button_6_type=oneshot\n" \
-"button_6_icon=settings.png\n" \
-"button_6_cmd=kcontrol\n\n" \
-"button_7_name={bluetooth}\n" \
-"button_7_icon=bt.png\n\n" \
-"button_8_name={project}\n" \
-"button_8_icon=project.png\n" \
+"button_3_cmd=sh /usr/share/qsidebar/scripts/network.sh\n\n" \
+"button_4_name={focus}\n" \
+"button_4_icon=focus.png\n\n" \
+"button_5_name=Snapshot\n" \
+"button_5_type=oneshot\n" \
+"button_5_icon=snapshot.png\n" \
+"button_5_cmd=ksnapshot\n\n" \
+"button_6_name={airplane}\n" \
+"button_6_icon=airplane.png\n\n" \
+"button_7_name=All Settings\n" \
+"button_7_type=oneshot\n" \
+"button_7_icon=settings.png\n" \
+"button_7_cmd=kcontrol\n\n" \
+"button_8_name=Note\n" \
+"button_8_type=oneshot\n" \
+"button_8_icon=note.png\n" \
+"button_8_cmd=sh /usr/share/qsidebar/scripts/knotes.sh\n" \
+"button_8_confirm_cmd=1\n" \
+"button_8_confirm_text=Do you want to create a new note ?\n\n" \
+"button_9_name={bluetooth}\n" \
+"button_9_icon=bt.png\n\n" \
+"button_10_name={project}\n" \
+"button_10_icon=project.png\n" \
 "[Project settings]\n" \
 "project_extend_full_panel_height=1\n\n"
 
